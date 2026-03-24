@@ -1,158 +1,214 @@
-<script>
-    const assetGroups = {
-        "indices": ["SPY", "QQQ", "DIA", "IWM", "EWG", "EWJ"],
-        "mag7": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL"],
-        "value": ["PG", "WMT", "JNJ", "KO", "JPM", "XOM", "AMAT", "AEM"],
-        "commodities": ["TLT", "GLD", "SLV", "USO", "UNG", "CPER", "FXE", "FXY"] 
-    };
-    const cryptos = ["btcusdt", "ethusdt", "solusdt"];
-    let eodToken = "";
-    let prevCloses = {}; 
-    let stdDeviations = {}; 
-    const GAUGE_MAX_SD = 3.0; 
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kriterion Quant - Live Terminal</title>
+    <style>
+        body { background-color: #000000; color: #d0d0d0; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; }
+        h1, h2 { color: #ff9900; margin-bottom: 10px; text-transform: uppercase; font-size: 1.2rem; }
+        #auth-section { background-color: #111; border: 1px solid #333; padding: 20px; border-radius: 4px; max-width: 500px; margin-bottom: 20px; }
+        input[type="text"] { background-color: #000; color: #0f0; border: 1px solid #555; padding: 10px; width: 70%; font-family: inherit; }
+        button { background-color: #333; color: #fff; border: 1px solid #555; padding: 10px 15px; cursor: pointer; font-family: inherit; margin-top: 10px; }
+        button:hover { background-color: #555; }
+        #debug-bar { color: #00ff00; font-style: italic; margin-bottom: 15px; font-size: 0.9rem;}
+        #dashboard { display: none; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .card { background-color: #121212; border: 1px solid #333; border-radius: 4px; padding: 20px 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; }
+        .ticker-name { font-weight: bold; font-size: 1.2rem; color: #ffffff; letter-spacing: 1px; }
+        .price { font-size: 2.2rem; margin: 10px 0 5px 0; }
+        .pct { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; }
+        .positive-text { color: #00ff00; } .negative-text { color: #ff0000; } .neutral-text { color: #d0d0d0; }
+        .gauge-container { width: 100%; position: relative; margin-top: 5px; }
+        .gauge-track { height: 8px; background: #2a2a2a; border-radius: 4px; position: relative; width: 100%; overflow: hidden; }
+        .gauge-center-mark { position: absolute; left: 50%; top: -3px; height: 14px; width: 2px; background: #fff; transform: translateX(-50%); z-index: 3; }
+        .sd-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.5); z-index: 2; }
+        .sd-marker.left-2sd { left: 16.66%; } .sd-marker.right-2sd { right: 16.66%; }
+        .gauge-bar { position: absolute; height: 100%; top: 0; border-radius: 3px; transition: width 0.3s ease-out; width: 0%; z-index: 1; }
+        .gauge-bar.positive { left: 50%; background: #00ff00; } .gauge-bar.negative { right: 50%; background: #ff0000; }
+        .prev-close-label { font-size: 0.75rem; color: #888; margin-top: 8px; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+    <h1>Kriterion Quant - Live Terminal</h1>
 
-    window.onload = function() {
-        const storedKey = localStorage.getItem('eodhd_api_token');
-        if (storedKey) { eodToken = storedKey; startTerminal(); }
-    };
+    <div id="auth-section">
+        <p>Inserisci la API Key per attivare i WebSocket EODHD in streaming.</p>
+        <input type="text" id="api_key_input" placeholder="EODHD API Token">
+        <button onclick="saveApiKey()">Connetti Terminale Live</button>
+    </div>
 
-    function saveApiKey() {
-        const key = document.getElementById('api_key_input').value.trim();
-        if (key) { localStorage.setItem('eodhd_api_token', key); eodToken = key; startTerminal(); }
-    }
-
-    function clearApiKey() { localStorage.removeItem('eodhd_api_token'); location.reload(); }
-
-    async function startTerminal() {
-        document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        buildUI();
+    <div id="dashboard">
+        <button onclick="clearApiKey()" style="float: right; font-size: 0.8rem; padding: 5px 10px;">Reset API Key / Cache</button>
+        <div id="debug-bar"></div>
         
-        const debugEl = document.getElementById('debug-bar');
-        debugEl.innerText = "Sincronizzazione globale in corso...";
-        
-        try {
-            // 1. Carica Azioni da data.json (GitHub)
-            const res = await fetch('./data.json?t=' + Date.now());
-            if (res.ok) {
-                const db = await res.json();
-                for (const ticker in db) {
-                    prevCloses[ticker] = db[ticker].prevClose;
-                    stdDeviations[ticker] = db[ticker].stdDev;
+        <h2>Indici & ETF</h2><div id="grid-indices" class="grid-container"></div>
+        <h2>Magnificent 7</h2><div id="grid-mag7" class="grid-container"></div>
+        <h2>Value Stocks</h2><div id="grid-value" class="grid-container"></div>
+        <h2>Commodities, Bonds & Forex (ETF)</h2><div id="grid-commodities" class="grid-container"></div>
+        <h2>Crypto (Binance)</h2><div id="grid-crypto" class="grid-container"></div>
+    </div>
+
+    <script>
+        const assetGroups = {
+            "indices": ["SPY", "QQQ", "DIA", "IWM", "EWG", "EWJ"],
+            "mag7": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL"],
+            "value": ["PG", "WMT", "JNJ", "KO", "JPM", "XOM", "AMAT", "AEM"],
+            "commodities": ["TLT", "GLD", "SLV", "USO", "UNG", "CPER", "FXE", "FXY"] 
+        };
+        const cryptos = ["btcusdt", "ethusdt", "solusdt"];
+        let eodToken = "";
+        let prevCloses = {}; 
+        let stdDeviations = {}; 
+        const GAUGE_MAX_SD = 3.0; 
+
+        window.onload = function() {
+            const storedKey = localStorage.getItem('eodhd_api_token');
+            if (storedKey) { eodToken = storedKey; startTerminal(); }
+        };
+
+        function saveApiKey() {
+            const key = document.getElementById('api_key_input').value.trim();
+            if (key) { localStorage.setItem('eodhd_api_token', key); eodToken = key; startTerminal(); }
+        }
+
+        function clearApiKey() { localStorage.removeItem('eodhd_api_token'); location.reload(); }
+
+        async function startTerminal() {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            buildUI();
+            
+            const debugEl = document.getElementById('debug-bar');
+            debugEl.innerText = "Sincronizzazione globale in corso...";
+            
+            try {
+                // 1. Carica Azioni da data.json
+                const res = await fetch('./data.json?t=' + Date.now());
+                if (res.ok) {
+                    const db = await res.json();
+                    for (const ticker in db) {
+                        prevCloses[ticker] = db[ticker].prevClose;
+                        stdDeviations[ticker] = db[ticker].stdDev;
+                    }
+                }
+
+                // 2. Carica Crypto direttamente da Binance REST
+                for (const c of cryptos) {
+                    try {
+                        const bRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${c.toUpperCase()}&interval=1d&limit=22`);
+                        const bData = await bRes.json();
+                        const closes = bData.map(d => parseFloat(d[4]));
+                        // Chiusura di ieri (penultima candela)
+                        prevCloses[c] = closes[closes.length - 2]; 
+                        
+                        // Calcolo SD locale
+                        let returns = [];
+                        for (let i = 1; i < closes.length - 1; i++) { 
+                            returns.push(Math.log(closes[i] / closes[i-1])); 
+                        }
+                        let mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+                        let variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (returns.length - 1);
+                        stdDeviations[c] = closes[closes.length - 2] * Math.sqrt(variance);
+                    } catch(e) { console.error("Errore Binance REST: " + c); }
+                }
+                
+                debugEl.innerText = "Sincronizzazione completata.";
+                setTimeout(() => { debugEl.innerText = ""; }, 3000);
+                
+                updateAllLabels();
+                initBinanceWS();
+                initEodhdWS();
+                
+            } catch(e) { debugEl.innerText = "Errore critico caricamento dati."; }
+        }
+
+        function buildUI() {
+            const containers = {
+                "indices": document.getElementById('grid-indices'),
+                "mag7": document.getElementById('grid-mag7'),
+                "value": document.getElementById('grid-value'),
+                "commodities": document.getElementById('grid-commodities'),
+                "crypto": document.getElementById('grid-crypto')
+            };
+            for (const [group, tickers] of Object.entries(assetGroups)) {
+                tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
+            }
+            cryptos.forEach(c => { 
+                const display = c.toUpperCase().replace('USDT', '');
+                containers["crypto"].innerHTML += createCardHTML(display, c); 
+            });
+        }
+
+        function createCardHTML(display, id = display) {
+            return `<div class="card">
+                <div class="ticker-name">${display}</div>
+                <div class="price neutral-text" id="price_${id}">--.---</div>
+                <div class="pct neutral-text" id="pct_${id}">0.00%</div>
+                <div class="gauge-container">
+                    <div class="gauge-track"><div class="sd-marker left-2sd"></div><div class="sd-marker right-2sd"></div><div class="gauge-bar" id="gauge_${id}"></div></div>
+                    <div class="gauge-center-mark"></div>
+                    <div class="prev-close-label" id="label_${id}">Prev: -- | 1σ: --</div>
+                </div>
+            </div>`;
+        }
+
+        function updateAllLabels() {
+            const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
+            all.forEach(id => {
+                const label = document.getElementById(`label_${id}`);
+                const prec = prevCloses[id];
+                const sd = stdDeviations[id];
+                const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+                if (label && prec) {
+                    label.innerText = `Prev: ${prec.toFixed(dec)} | 1σ: ${sd ? sd.toFixed(dec) : '--'}`;
+                }
+            });
+        }
+
+        function initBinanceWS() {
+            const streams = cryptos.map(c => `${c}@ticker`).join('/');
+            const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+            ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                const ticker = data.stream.split('@')[0];
+                updateCard(ticker, parseFloat(data.data.c));
+            };
+        }
+
+        function initEodhdWS() {
+            const ws = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
+            const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
+            ws.onopen = () => { all.forEach(s => ws.send(JSON.stringify({"action": "subscribe", "symbols": s}))); };
+            ws.onmessage = (e) => {
+                const res = JSON.parse(e.data);
+                if (res.s && res.p) updateCard(res.s, parseFloat(res.p));
+            };
+        }
+
+        function updateCard(id, price) {
+            const pEl = document.getElementById(`price_${id}`);
+            const pctEl = document.getElementById(`pct_${id}`);
+            const gEl = document.getElementById(`gauge_${id}`);
+            if (!pEl) return;
+            const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+            pEl.innerText = price.toFixed(dec);
+            const base = prevCloses[id];
+            const sd = stdDeviations[id];
+            if (base && base > 0) {
+                const pct = ((price - base) / base) * 100;
+                pctEl.innerText = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
+                pctEl.className = `pct ${pct >= 0 ? 'positive-text' : 'negative-text'}`;
+                if (gEl && sd) {
+                    const diff = price - base;
+                    const moveSD = diff / sd;
+                    let fill = (Math.abs(moveSD) / GAUGE_MAX_SD) * 50;
+                    if (fill > 50) fill = 50;
+                    gEl.style.width = fill + '%';
+                    gEl.className = `gauge-bar ${diff >= 0 ? 'positive' : 'negative'}`;
                 }
             }
-
-            // 2. Carica Crypto direttamente da Binance (Browser)
-            for (const c of cryptos) {
-                try {
-                    const bRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${c.toUpperCase()}&interval=1d&limit=22`);
-                    const bData = await bRes.json();
-                    const closes = bData.map(d => parseFloat(d[4]));
-                    prevCloses[c] = closes[closes.length - 2]; // Chiusura di ieri (Mezzanotte)
-                    
-                    // Calcolo SD locale per le crypto
-                    let returns = [];
-                    for (let i = 1; i < closes.length - 1; i++) { returns.push(Math.log(closes[i] / closes[i-1])); }
-                    let mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-                    let variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (returns.length - 1);
-                    stdDeviations[c] = closes[closes.length - 2] * Math.sqrt(variance);
-                } catch(e) { console.error("Errore Binance REST per " + c); }
-            }
-            
-            debugEl.innerText = "Sincronizzazione completata.";
-            setTimeout(() => { debugEl.innerText = ""; }, 3000);
-            
-            updateAllLabels();
-            initBinanceWS();
-            initEodhdWS();
-            
-        } catch(e) { debugEl.innerText = "Errore caricamento dati base."; }
-    }
-
-    function buildUI() {
-        const containers = {
-            "indices": document.getElementById('grid-indices'),
-            "mag7": document.getElementById('grid-mag7'),
-            "value": document.getElementById('grid-value'),
-            "commodities": document.getElementById('grid-commodities'),
-            "crypto": document.getElementById('grid-crypto')
-        };
-        for (const [group, tickers] of Object.entries(assetGroups)) {
-            tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
         }
-        cryptos.forEach(c => { 
-            const display = c.toUpperCase().replace('USDT', '');
-            containers["crypto"].innerHTML += createCardHTML(display, c); 
-        });
-    }
-
-    function createCardHTML(display, id = display) {
-        return `<div class="card">
-            <div class="ticker-name">${display}</div>
-            <div class="price neutral-text" id="price_${id}">--.---</div>
-            <div class="pct neutral-text" id="pct_${id}">0.00%</div>
-            <div class="gauge-container">
-                <div class="gauge-track"><div class="sd-marker left-2sd"></div><div class="sd-marker right-2sd"></div><div class="gauge-bar" id="gauge_${id}"></div></div>
-                <div class="gauge-center-mark"></div>
-                <div class="prev-close-label" id="label_${id}">Prev: -- | 1σ: --</div>
-            </div>
-        </div>`;
-    }
-
-    function updateAllLabels() {
-        const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
-        all.forEach(id => {
-            const label = document.getElementById(`label_${id}`);
-            const prec = prevCloses[id];
-            const sd = stdDeviations[id];
-            const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
-            if (label && prec) {
-                label.innerText = `Prev: ${prec.toFixed(dec)} | 1σ: ${sd ? sd.toFixed(dec) : '--'}`;
-            }
-        });
-    }
-
-    function initBinanceWS() {
-        const streams = cryptos.map(c => `${c}@ticker`).join('/');
-        const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-        ws.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-            const ticker = data.stream.split('@')[0];
-            updateCard(ticker, parseFloat(data.data.c));
-        };
-    }
-
-    function initEodhdWS() {
-        const ws = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
-        const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
-        ws.onopen = () => { all.forEach(s => ws.send(JSON.stringify({"action": "subscribe", "symbols": s}))); };
-        ws.onmessage = (e) => {
-            const res = JSON.parse(e.data);
-            if (res.s && res.p) updateCard(res.s, parseFloat(res.p));
-        };
-    }
-
-    function updateCard(id, price) {
-        const pEl = document.getElementById(`price_${id}`);
-        const pctEl = document.getElementById(`pct_${id}`);
-        const gEl = document.getElementById(`gauge_${id}`);
-        if (!pEl) return;
-        const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
-        pEl.innerText = price.toFixed(dec);
-        const base = prevCloses[id];
-        const sd = stdDeviations[id];
-        if (base && base > 0) {
-            const pct = ((price - base) / base) * 100;
-            pctEl.innerText = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
-            pctEl.className = `pct ${pct >= 0 ? 'positive-text' : 'negative-text'}`;
-            if (gEl && sd) {
-                const diff = price - base;
-                const moveSD = diff / sd;
-                let fill = (Math.abs(moveSD) / GAUGE_MAX_SD) * 50;
-                if (fill > 50) fill = 50;
-                gEl.style.width = fill + '%';
-                gEl.className = `gauge-bar ${diff >= 0 ? 'positive' : 'negative'}`;
-            }
-        }
-    }
-</script>
+    </script>
+</body>
+</html>
