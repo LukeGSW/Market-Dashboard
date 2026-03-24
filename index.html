@@ -1,214 +1,714 @@
+
+
+
+Crea il tuo primo progetto
+Queste attività vengono eseguite localmente e non sono sincronizzate tra i dispositivi
+
+Agisci come programmatore esperto per la finanza quantitativa, python GitHub e Streamlit. Ti allego un repository GitHub che genera una pagina HTML che rappresenta la mia dashboard di prezzi in Realtime. https://github.com/LukeGSW/Market-Dashboard .Senza alterare in alcun modo le logiche di popolazione dei dati per evitare di alterarne il funzionamento, cosa proporresti di fare per migliorarne sia la grafica e sia l'utilità aggiungendo magari degli elementi in più con i dati già a disposizione?
+
+
+Analyzed GitHub repository structure and documented key files for Market-Dashboard project
+Analyzed GitHub repository structure and documented key files for Market-Dashboard project
+Ho analizzato il repository in dettaglio. Ecco la mia proposta strutturata di miglioramenti, divisa tra grafica e utilità, tutti costruibili esclusivamente con i dati già presenti (prevClose, stdDev, price stream in arrivo via WebSocket).
+
+Miglioramenti Grafici
+1. Flash di aggiornamento per prezzo Ogni volta che arriva un nuovo tick, la card dovrebbe lampeggiare brevemente (verde se il prezzo è salito, rosso se è sceso rispetto al tick precedente). Attualmente non c'è feedback visivo sul singolo aggiornamento. Si implementa confrontando il prezzo corrente col precedente in memoria JS.
+
+2. Mini Sparkline intraday per card Accumulando i prezzi ricevuti via WebSocket in un array JS per ogni ticker, si può disegnare una micro-linea di prezzo (SVG o Canvas, 60x20px) direttamente nella card. Zero chiamate API aggiuntive: i dati arrivano già in real-time e vengono solo memorizzati nella sessione.
+
+3. Bordo pulsante a ±2σ (Alert visivo) Quando (price - prevClose) / stdDev supera ±2, la card accende un bordo colorato pulsante (giallo a 2σ, arancio a 2.5σ, rosso a 3σ). Segnale immediato sugli outlier senza modificare la logica di calcolo.
+
+4. Heatmap colorimetrica sull'intensità del movimento Aggiungere alla card un background sfumato il cui rosso/verde varia per intensità proporzionale al σ score: mossa piccola = colore appena percettibile, mossa estrema = colore saturo. Molto più leggibile a colpo d'occhio rispetto al solo testo.
+
+5. Upgrade visivo generale del tema Il nero piatto attuale può essere sostituito con un dark theme più moderno: background 
+#0a0a0f, card con border: 1px solid rgba(0,255,0,0.15) e leggero box-shadow verde. Il font Courier New può restare ma con spaziatura e sizing più curati.
+
+Aggiunta di Utilità con Dati Già Disponibili
+6. σ Score esplicito in card Accanto alla percentuale, mostrare esplicitamente il valore in sigma, es. +1.4σ. Questo è il dato più utile per un trader quantitativo e attualmente è solo implicito nel gauge. Il calcolo è (price - prevClose) / stdDev, già disponibile.
+
+7. Market Breadth Bar globale (header) In cima alla dashboard, una barra tipo ▲ 21 / 31 ▼ 10 che mostra in tempo reale quanti titoli sono positivi vs negativi. Aggiorna ad ogni tick. Con CSS si può fare una progress bar bicolore (verde/rosso) molto compatta e informativa.
+
+8. Top Movers Panel Un pannello fisso in alto (o sidebar) che mostra sempre i 3 titoli con il σ score più alto in valore assoluto — sia in gain che in loss. Aggiornarsi dinamicamente. Dà subito contesto sull'anomalia di giornata senza dover scansionare 31 card.
+
+9. Session High / Low per card Tracciando in JS il massimo e il minimo ricevuti via WebSocket durante la sessione, si può mostrare in piccolo sotto il prezzo attuale H: 257.20 | L: 248.50. Informazione ad alto valore, zero costo computazionale aggiuntivo.
+
+10. Sort & Filter rapido Pulsanti (senza form, solo JS) per ordinare le card all'interno di ogni sezione per: % Change, σ Score, Alphabetical. Oppure un filtro globale Mostra solo: 🔴 In perdita | 🟢 In gain | ⚡ >2σ. Tutto calcolato sui dati in memoria.
+
+11. Timestamp dell'ultimo tick per ticker Sotto ogni card, in grigio chiarito, mostrare l'orario dell'ultimo aggiornamento ricevuto (es. 15:32:41). Utile per capire se un titolo è liquido o se il feed si è bloccato. Basta catturare Date.now() ad ogni update.
+
+12. Snapshot / Export CSV one-click Un pulsante "Export" che genera e scarica un CSV con lo stato attuale di tutti i ticker (ticker, price, prevClose, pct, σ score, sessionHigh, sessionLow). Utilissimo per post-analisi, costruito interamente dai dati già in memoria JS.
+
+Priorità suggerita
+Se dovessi implementare in ordine di impatto/effort, partirei da: σ Score esplicito in card (6) → Flash di aggiornamento (1) → Market Breadth Bar (7) → Alert ±2σ (3) → Top Movers Panel (8) → Session High/Low (9). Gli altri sono tutti desiderabili ma meno urgenti.
+
+Vuoi che implementi direttamente una versione aggiornata dell'index.html con uno o più di questi miglioramenti?
+
+No con il mercato aperto farebbe impazzire visualmente. 2. No per lo stesso motivo. 3. Visualizzazione Interessante. 4. elemento non gradito. 5. Restyling grafico interessante. 6. No lasciamo la lettura nello slider. 7. Sarebbe anche carina ma l'universo è troppo piccolo perchè sia efficace quindi da non implementare. 8. Interessante, si potrebbe implementare. 9. Non interessante. 10. non interessante. 11. Questo lo implementerei in maniera diversa. Colorerei il bordo della card di un colore specifico se non riceve tick da 5 minuti ad esempio (sempre se di facile implementazione). 12. non interessante ho già i dati storici per analisi dei dati.
+
+Processo di ragionamento
+Processo di ragionamento
+Perfetto, implemento esattamente questi 4 punti:
+
+3 → Bordo pulsante alert a ±2σ / ±3σ
+5 → Restyling dark theme moderno
+8 → Top Movers Panel
+11 (modificato) → Bordo card colorato se nessun tick da 5 min
+
+Updated todo list tracking HTML improvements implementation
+Updated todo list tracking HTML improvements implementation
+Verifica rapida che la logica dati sia intatta e le 4 feature siano presenti:
+
+
+Presented generated index.html output file
+Presented generated index.html output file
+Tutto verificato. La logica dati è intatta al 100% — nessuna modifica a startTerminal, initBinanceWS, initEodhdWS, updateAllLabels o ai calcoli di prevClose/stdDev.
+
+Ecco un riepilogo preciso di cosa fa ogni feature:
+
+Punto 3 — Alert σ: In updateCard(), dopo il calcolo del moveSD già esistente, viene aggiunta/rimossa la classe CSS sulla card: alert-2sd (bordo giallo rgba(255,204,0)) se |σ| ≥ 2, alert-3sd (bordo rosso con @keyframes pulse-red) se |σ| ≥ 3. Al tick successivo le classi vengono sempre aggiornate.
+
+Punto 5 — Restyling: Background 
+#0a0a0f, card con linear-gradient(145deg, #111318, #0d0f14), bordi rgba(0,255,0,0.10), h1 con text-shadow arancione, h2 con border-bottom sottile, gauge con gradiente verde/rosso, font sizing rivisto.
+
+Punto 8 — Top Movers Panel: Una barra orizzontale sopra le sezioni. Ogni tick aggiorna sigmaScores[id], poi updateTopMovers() viene chiamata con throttle a 800ms per non sovraccaricare il DOM. Mostra i top 3 per σ positivo (▲) e i top 3 per σ negativo (▼), separati da │.
+
+Punto 11 — Stale Data: lastTickTime[id] viene settato ad ogni tick in arrivo. checkStaleData() gira ogni 60 secondi: se Date.now() - lastTickTime[id] > 5 min E la card non è in alert σ (che avrebbe priorità visiva), aggiunge la classe stale-data — bordo ambra opacizzato + simbolo ⊘ dopo il ticker name via CSS ::after.
+
+C:\Users\lukeg\AppData\Roaming\Claude\local-agent-mode-sessions\ec27a297-5884-4120-ad3e-6c511acba02e\d00bd7d0-90e0-407b-ae99-6be813058030\local_eb7d5613-0cf4-4e7b-a64b-29ac00701f17\outputs\index.html
+Codice 
+
+
+Google Chrome
+
+il file che hai scritto devo sostituirlo con l'index.html? Il resto rimane intatto?
+
+Sì, esattamente. Sostituisci solo index.html nel tuo repository con questo file. Tutto il resto rimane identico:
+
+data.json → invariato
+updater.py → invariato
+.github/workflows/update.yml → invariato
+Il nuovo index.html è completamente self-contained: le 4 feature aggiunte vivono interamente nel CSS e nel JavaScript della pagina, senza dipendenze esterne né modifiche alla struttura dei dati.
+
+
+
+
+
+
+Claude è un'IA e può commettere errori. Verifica sempre le risposte. Inviaci un feedback
+
+
+Google Chrome
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kriterion Quant - Live Terminal</title>
-    <style>
-        body { background-color: #000000; color: #d0d0d0; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; }
-        h1, h2 { color: #ff9900; margin-bottom: 10px; text-transform: uppercase; font-size: 1.2rem; }
-        #auth-section { background-color: #111; border: 1px solid #333; padding: 20px; border-radius: 4px; max-width: 500px; margin-bottom: 20px; }
-        input[type="text"] { background-color: #000; color: #0f0; border: 1px solid #555; padding: 10px; width: 70%; font-family: inherit; }
-        button { background-color: #333; color: #fff; border: 1px solid #555; padding: 10px 15px; cursor: pointer; font-family: inherit; margin-top: 10px; }
-        button:hover { background-color: #555; }
-        #debug-bar { color: #00ff00; font-style: italic; margin-bottom: 15px; font-size: 0.9rem;}
-        #dashboard { display: none; }
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .card { background-color: #121212; border: 1px solid #333; border-radius: 4px; padding: 20px 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; }
-        .ticker-name { font-weight: bold; font-size: 1.2rem; color: #ffffff; letter-spacing: 1px; }
-        .price { font-size: 2.2rem; margin: 10px 0 5px 0; }
-        .pct { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; }
-        .positive-text { color: #00ff00; } .negative-text { color: #ff0000; } .neutral-text { color: #d0d0d0; }
-        .gauge-container { width: 100%; position: relative; margin-top: 5px; }
-        .gauge-track { height: 8px; background: #2a2a2a; border-radius: 4px; position: relative; width: 100%; overflow: hidden; }
-        .gauge-center-mark { position: absolute; left: 50%; top: -3px; height: 14px; width: 2px; background: #fff; transform: translateX(-50%); z-index: 3; }
-        .sd-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.5); z-index: 2; }
-        .sd-marker.left-2sd { left: 16.66%; } .sd-marker.right-2sd { right: 16.66%; }
-        .gauge-bar { position: absolute; height: 100%; top: 0; border-radius: 3px; transition: width 0.3s ease-out; width: 0%; z-index: 1; }
-        .gauge-bar.positive { left: 50%; background: #00ff00; } .gauge-bar.negative { right: 50%; background: #ff0000; }
-        .prev-close-label { font-size: 0.75rem; color: #888; margin-top: 8px; font-family: sans-serif; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kriterion Quant - Live Terminal</title>
+  <style>
+    /* ===== BASE THEME (UPGRADED) ===== */
+    * { box-sizing: border-box; }
+    body {
+      background-color: #0a0a0f;
+      color: #d0d0d0;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #ff9900;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-size: 1.3rem;
+      letter-spacing: 3px;
+      text-shadow: 0 0 14px rgba(255, 153, 0, 0.45);
+    }
+    .header-sub {
+      color: #444;
+      font-size: 0.68rem;
+      letter-spacing: 2.5px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #ff9900;
+      margin: 0 0 12px 0;
+      text-transform: uppercase;
+      font-size: 0.82rem;
+      letter-spacing: 2px;
+      padding-bottom: 7px;
+      border-bottom: 1px solid rgba(255, 153, 0, 0.22);
+    }
+ 
+    /* ===== AUTH SECTION ===== */
+    #auth-section {
+      background: linear-gradient(135deg, #111318, #0d0f14);
+      border: 1px solid rgba(0, 255, 0, 0.14);
+      padding: 20px;
+      border-radius: 6px;
+      max-width: 500px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
+    }
+    input[type="text"] {
+      background-color: #000;
+      color: #0f0;
+      border: 1px solid #2a2a2a;
+      padding: 10px;
+      width: 70%;
+      font-family: inherit;
+      border-radius: 3px;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { outline: none; border-color: rgba(0, 255, 0, 0.45); }
+    button {
+      background-color: #12141a;
+      color: #aaa;
+      border: 1px solid #2a2a2a;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 10px;
+      border-radius: 3px;
+      transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    }
+    button:hover { background-color: #1e2028; color: #fff; border-color: #444; }
+ 
+    /* ===== DEBUG BAR ===== */
+    #debug-bar {
+      color: #00cc66;
+      font-style: italic;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      min-height: 1.2em;
+    }
+    #dashboard { display: none; }
+ 
+    /* ===== TOP MOVERS PANEL ===== */
+    #top-movers-container {
+      background: linear-gradient(135deg, #0d0f14, #111318);
+      border: 1px solid rgba(255, 153, 0, 0.2);
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      min-height: 46px;
+    }
+    .movers-label {
+      color: #ff9900;
+      font-size: 0.7rem;
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    #top-movers-panel {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .movers-group {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .movers-divider {
+      color: #2a2a2a;
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+    .mover-item {
+      font-size: 0.78rem;
+      font-weight: bold;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+    .movers-placeholder { color: #333; font-size: 0.75rem; font-style: italic; }
+ 
+    /* ===== ALERT LEGEND ===== */
+    .alert-legend {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      font-size: 0.67rem;
+      color: #444;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .alert-legend span { display: flex; align-items: center; gap: 5px; }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+ 
+    /* ===== GRID ===== */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+ 
+    /* ===== CARDS (BASE) ===== */
+    .card {
+      background: linear-gradient(145deg, #111318, #0d0f14);
+      border: 1px solid rgba(0, 255, 0, 0.1);
+      border-radius: 6px;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      transition: border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+    .card:hover { border-color: rgba(0, 255, 0, 0.24); }
+ 
+    /* ===== ALERT BORDERS — σ level ===== */
+    /* ±2σ: gold border */
+    .alert-2sd {
+      border-color: rgba(255, 204, 0, 0.78) !important;
+      box-shadow: 0 0 12px rgba(255, 204, 0, 0.22) !important;
+    }
+    /* ±3σ: red pulsing border */
+    .alert-3sd {
+      border-color: rgba(255, 55, 0, 0.92) !important;
+      box-shadow: 0 0 16px rgba(255, 55, 0, 0.38) !important;
+      animation: pulse-red 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 55, 0, 0.32); }
+      50%       { box-shadow: 0 0 26px rgba(255, 55, 0, 0.65); }
+    }
+ 
+    /* ===== STALE DATA — no tick for 5 min ===== */
+    .stale-data {
+      border-color: rgba(130, 105, 45, 0.5) !important;
+      box-shadow: none !important;
+      opacity: 0.58;
+      animation: none !important;
+    }
+    .stale-data .ticker-name::after {
+      content: ' ⊘';
+      color: rgba(150, 120, 50, 0.75);
+      font-size: 0.62em;
+    }
+ 
+    /* ===== CARD INNER ===== */
+    .ticker-name {
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: #ffffff;
+      letter-spacing: 1.5px;
+      margin-bottom: 2px;
+    }
+    .price { font-size: 1.95rem; margin: 8px 0 4px 0; font-weight: bold; }
+    .pct { font-size: 1.1rem; font-weight: bold; margin-bottom: 14px; }
+    .positive-text { color: #00ff66; }
+    .negative-text { color: #ff4444; }
+    .neutral-text  { color: #666; }
+ 
+    /* ===== GAUGE ===== */
+    .gauge-container { width: 100%; position: relative; margin-top: 4px; }
+    .gauge-track {
+      height: 7px;
+      background: #1a1a22;
+      border-radius: 4px;
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+    }
+    .gauge-center-mark {
+      position: absolute;
+      left: 50%;
+      top: -3px;
+      height: 13px;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.55);
+      transform: translateX(-50%);
+      z-index: 3;
+    }
+    .sd-marker {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 1px;
+      background: rgba(255, 255, 255, 0.2);
+      z-index: 2;
+    }
+    .sd-marker.left-2sd  { left: 16.66%; }
+    .sd-marker.right-2sd { right: 16.66%; }
+    .gauge-bar {
+      position: absolute;
+      height: 100%;
+      top: 0;
+      border-radius: 3px;
+      transition: width 0.3s ease-out;
+      width: 0%;
+      z-index: 1;
+    }
+    .gauge-bar.positive { left: 50%;  background: linear-gradient(to right, #00bb44, #00ff88); }
+    .gauge-bar.negative { right: 50%; background: linear-gradient(to left,  #cc2200, #ff4444); }
+    .prev-close-label {
+      font-size: 0.7rem;
+      color: #444;
+      margin-top: 7px;
+      font-family: sans-serif;
+    }
+  </style>
 </head>
 <body>
-    <h1>Kriterion Quant - Live Terminal</h1>
-
-    <div id="auth-section">
-        <p>Inserisci la API Key per attivare i WebSocket EODHD in streaming.</p>
-        <input type="text" id="api_key_input" placeholder="EODHD API Token">
-        <button onclick="saveApiKey()">Connetti Terminale Live</button>
+ 
+  <h1>Kriterion Quant — Live Terminal</h1>
+  <div class="header-sub">REAL-TIME MARKET MONITOR</div>
+ 
+  <div id="auth-section">
+    <p>Inserisci la API Key per attivare i WebSocket EODHD in streaming.</p>
+    <input type="text" id="api_key_input" placeholder="EODHD API Token">
+    <button onclick="saveApiKey()">Connetti Terminale Live</button>
+  </div>
+ 
+  <div id="dashboard">
+    <button onclick="clearApiKey()" style="float: right; font-size: 0.75rem; padding: 5px 10px;">Reset API Key / Cache</button>
+    <div id="debug-bar"></div>
+ 
+    <!-- ===== TOP MOVERS PANEL ===== -->
+    <div id="top-movers-container">
+      <span class="movers-label">TOP MOVERS (σ)</span>
+      <div id="top-movers-panel">
+        <span class="movers-placeholder">In attesa dei prezzi...</span>
+      </div>
     </div>
-
-    <div id="dashboard">
-        <button onclick="clearApiKey()" style="float: right; font-size: 0.8rem; padding: 5px 10px;">Reset API Key / Cache</button>
-        <div id="debug-bar"></div>
-        
-        <h2>Indici & ETF</h2><div id="grid-indices" class="grid-container"></div>
-        <h2>Magnificent 7</h2><div id="grid-mag7" class="grid-container"></div>
-        <h2>Value Stocks</h2><div id="grid-value" class="grid-container"></div>
-        <h2>Commodities, Bonds & Forex (ETF)</h2><div id="grid-commodities" class="grid-container"></div>
-        <h2>Crypto (Binance)</h2><div id="grid-crypto" class="grid-container"></div>
+ 
+    <!-- ===== ALERT LEGEND ===== -->
+    <div class="alert-legend">
+      <span>
+        <span class="legend-dot" style="background:rgba(255,204,0,0.85);"></span>
+        Bordo giallo = ±2σ
+      </span>
+      <span>
+        <span class="legend-dot" style="background:rgba(255,55,0,0.92);"></span>
+        Bordo rosso pulsante = ±3σ
+      </span>
+      <span>
+        <span class="legend-dot" style="background:rgba(130,105,45,0.6);"></span>
+        Bordo ambra ⊘ = nessun tick da 5 min
+      </span>
     </div>
-
-    <script>
-        const assetGroups = {
-            "indices": ["SPY", "QQQ", "DIA", "IWM", "EWG", "EWJ"],
-            "mag7": ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL"],
-            "value": ["PG", "WMT", "JNJ", "KO", "JPM", "XOM", "AMAT", "AEM"],
-            "commodities": ["TLT", "GLD", "SLV", "USO", "UNG", "CPER", "FXE", "FXY"] 
-        };
-        const cryptos = ["btcusdt", "ethusdt", "solusdt"];
-        let eodToken = "";
-        let prevCloses = {}; 
-        let stdDeviations = {}; 
-        const GAUGE_MAX_SD = 3.0; 
-
-        window.onload = function() {
-            const storedKey = localStorage.getItem('eodhd_api_token');
-            if (storedKey) { eodToken = storedKey; startTerminal(); }
-        };
-
-        function saveApiKey() {
-            const key = document.getElementById('api_key_input').value.trim();
-            if (key) { localStorage.setItem('eodhd_api_token', key); eodToken = key; startTerminal(); }
+ 
+    <h2>Indici &amp; ETF</h2>
+    <div id="grid-indices" class="grid-container"></div>
+ 
+    <h2>Magnificent 7</h2>
+    <div id="grid-mag7" class="grid-container"></div>
+ 
+    <h2>Value Stocks</h2>
+    <div id="grid-value" class="grid-container"></div>
+ 
+    <h2>Commodities, Bonds &amp; Forex (ETF)</h2>
+    <div id="grid-commodities" class="grid-container"></div>
+ 
+    <h2>Crypto (Binance)</h2>
+    <div id="grid-crypto" class="grid-container"></div>
+  </div>
+ 
+  <script>
+    // =====================================================
+    //  DATA CONFIGURATION — UNCHANGED from original
+    // =====================================================
+    const assetGroups = {
+      "indices":     ["SPY", "QQQ", "DIA", "IWM", "EWG", "EWJ"],
+      "mag7":        ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL"],
+      "value":       ["PG", "WMT", "JNJ", "KO", "JPM", "XOM", "AMAT", "AEM"],
+      "commodities": ["TLT", "GLD", "SLV", "USO", "UNG", "CPER", "FXE", "FXY"]
+    };
+    const cryptos = ["btcusdt", "ethusdt", "solusdt"];
+    let eodToken = "";
+    let prevCloses    = {};
+    let stdDeviations = {};
+    const GAUGE_MAX_SD = 3.0;
+ 
+    // =====================================================
+    //  NEW: UI STATE TRACKERS
+    // =====================================================
+    let sigmaScores    = {};   // id → current σ score
+    let lastTickTime   = {};   // id → timestamp of last received tick
+    let topMoversTimer = null; // throttle handle for top-movers refresh
+ 
+    // =====================================================
+    //  INIT — UNCHANGED from original
+    // =====================================================
+    window.onload = function () {
+      const storedKey = localStorage.getItem('eodhd_api_token');
+      if (storedKey) { eodToken = storedKey; startTerminal(); }
+    };
+ 
+    function saveApiKey() {
+      const key = document.getElementById('api_key_input').value.trim();
+      if (key) { localStorage.setItem('eodhd_api_token', key); eodToken = key; startTerminal(); }
+    }
+ 
+    function clearApiKey() { localStorage.removeItem('eodhd_api_token'); location.reload(); }
+ 
+    // =====================================================
+    //  START TERMINAL — data logic UNCHANGED, added stale interval
+    // =====================================================
+    async function startTerminal() {
+      document.getElementById('auth-section').style.display = 'none';
+      document.getElementById('dashboard').style.display   = 'block';
+      buildUI();
+ 
+      const debugEl = document.getElementById('debug-bar');
+      debugEl.innerText = "Sincronizzazione globale in corso...";
+ 
+      try {
+        // 1. Carica Azioni da data.json — UNCHANGED
+        const res = await fetch('./data.json?t=' + Date.now());
+        if (res.ok) {
+          const db = await res.json();
+          for (const ticker in db) {
+            prevCloses[ticker]    = db[ticker].prevClose;
+            stdDeviations[ticker] = db[ticker].stdDev;
+          }
         }
-
-        function clearApiKey() { localStorage.removeItem('eodhd_api_token'); location.reload(); }
-
-        async function startTerminal() {
-            document.getElementById('auth-section').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-            buildUI();
-            
-            const debugEl = document.getElementById('debug-bar');
-            debugEl.innerText = "Sincronizzazione globale in corso...";
-            
-            try {
-                // 1. Carica Azioni da data.json
-                const res = await fetch('./data.json?t=' + Date.now());
-                if (res.ok) {
-                    const db = await res.json();
-                    for (const ticker in db) {
-                        prevCloses[ticker] = db[ticker].prevClose;
-                        stdDeviations[ticker] = db[ticker].stdDev;
-                    }
-                }
-
-                // 2. Carica Crypto direttamente da Binance REST
-                for (const c of cryptos) {
-                    try {
-                        const bRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${c.toUpperCase()}&interval=1d&limit=22`);
-                        const bData = await bRes.json();
-                        const closes = bData.map(d => parseFloat(d[4]));
-                        // Chiusura di ieri (penultima candela)
-                        prevCloses[c] = closes[closes.length - 2]; 
-                        
-                        // Calcolo SD locale
-                        let returns = [];
-                        for (let i = 1; i < closes.length - 1; i++) { 
-                            returns.push(Math.log(closes[i] / closes[i-1])); 
-                        }
-                        let mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-                        let variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (returns.length - 1);
-                        stdDeviations[c] = closes[closes.length - 2] * Math.sqrt(variance);
-                    } catch(e) { console.error("Errore Binance REST: " + c); }
-                }
-                
-                debugEl.innerText = "Sincronizzazione completata.";
-                setTimeout(() => { debugEl.innerText = ""; }, 3000);
-                
-                updateAllLabels();
-                initBinanceWS();
-                initEodhdWS();
-                
-            } catch(e) { debugEl.innerText = "Errore critico caricamento dati."; }
-        }
-
-        function buildUI() {
-            const containers = {
-                "indices": document.getElementById('grid-indices'),
-                "mag7": document.getElementById('grid-mag7'),
-                "value": document.getElementById('grid-value'),
-                "commodities": document.getElementById('grid-commodities'),
-                "crypto": document.getElementById('grid-crypto')
-            };
-            for (const [group, tickers] of Object.entries(assetGroups)) {
-                tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
+ 
+        // 2. Carica Crypto da Binance REST — UNCHANGED
+        for (const c of cryptos) {
+          try {
+            const bRes  = await fetch(`https://api.binance.com/api/v3/klines?symbol=${c.toUpperCase()}&interval=1d&limit=22`);
+            const bData = await bRes.json();
+            const closes = bData.map(d => parseFloat(d[4]));
+            prevCloses[c] = closes[closes.length - 2];
+ 
+            let returns = [];
+            for (let i = 1; i < closes.length - 1; i++) {
+              returns.push(Math.log(closes[i] / closes[i - 1]));
             }
-            cryptos.forEach(c => { 
-                const display = c.toUpperCase().replace('USDT', '');
-                containers["crypto"].innerHTML += createCardHTML(display, c); 
-            });
+            let mean     = returns.reduce((a, b) => a + b, 0) / returns.length;
+            let variance = returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (returns.length - 1);
+            stdDeviations[c] = closes[closes.length - 2] * Math.sqrt(variance);
+          } catch (e) { console.error("Errore Binance REST: " + c); }
         }
-
-        function createCardHTML(display, id = display) {
-            return `<div class="card">
-                <div class="ticker-name">${display}</div>
-                <div class="price neutral-text" id="price_${id}">--.---</div>
-                <div class="pct neutral-text" id="pct_${id}">0.00%</div>
-                <div class="gauge-container">
-                    <div class="gauge-track"><div class="sd-marker left-2sd"></div><div class="sd-marker right-2sd"></div><div class="gauge-bar" id="gauge_${id}"></div></div>
-                    <div class="gauge-center-mark"></div>
-                    <div class="prev-close-label" id="label_${id}">Prev: -- | 1σ: --</div>
-                </div>
-            </div>`;
+ 
+        debugEl.innerText = "Sincronizzazione completata.";
+        setTimeout(() => { debugEl.innerText = ""; }, 3000);
+ 
+        updateAllLabels();
+        initBinanceWS();
+        initEodhdWS();
+ 
+        // NEW: check stale tickers every 60 seconds
+        setInterval(checkStaleData, 60000);
+ 
+      } catch (e) { debugEl.innerText = "Errore critico caricamento dati."; }
+    }
+ 
+    // =====================================================
+    //  BUILD UI — added id="card_${id}" on each card
+    // =====================================================
+    function buildUI() {
+      const containers = {
+        "indices":     document.getElementById('grid-indices'),
+        "mag7":        document.getElementById('grid-mag7'),
+        "value":       document.getElementById('grid-value'),
+        "commodities": document.getElementById('grid-commodities'),
+        "crypto":      document.getElementById('grid-crypto')
+      };
+      for (const [group, tickers] of Object.entries(assetGroups)) {
+        tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
+      }
+      cryptos.forEach(c => {
+        const display = c.toUpperCase().replace('USDT', '');
+        containers["crypto"].innerHTML += createCardHTML(display, c);
+      });
+    }
+ 
+    function createCardHTML(display, id = display) {
+      return `<div class="card" id="card_${id}">
+        <div class="ticker-name">${display}</div>
+        <div class="price neutral-text" id="price_${id}">--.---</div>
+        <div class="pct neutral-text" id="pct_${id}">0.00%</div>
+        <div class="gauge-container">
+          <div class="gauge-track">
+            <div class="sd-marker left-2sd"></div>
+            <div class="sd-marker right-2sd"></div>
+            <div class="gauge-bar" id="gauge_${id}"></div>
+          </div>
+          <div class="gauge-center-mark"></div>
+          <div class="prev-close-label" id="label_${id}">Prev: -- | 1σ: --</div>
+        </div>
+      </div>`;
+    }
+ 
+    // =====================================================
+    //  UPDATE ALL LABELS — UNCHANGED from original
+    // =====================================================
+    function updateAllLabels() {
+      const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
+      all.forEach(id => {
+        const label = document.getElementById(`label_${id}`);
+        const prec  = prevCloses[id];
+        const sd    = stdDeviations[id];
+        const dec   = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+        if (label && prec) {
+          label.innerText = `Prev: ${prec.toFixed(dec)} | 1σ: ${sd ? sd.toFixed(dec) : '--'}`;
         }
-
-        function updateAllLabels() {
-            const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
-            all.forEach(id => {
-                const label = document.getElementById(`label_${id}`);
-                const prec = prevCloses[id];
-                const sd = stdDeviations[id];
-                const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
-                if (label && prec) {
-                    label.innerText = `Prev: ${prec.toFixed(dec)} | 1σ: ${sd ? sd.toFixed(dec) : '--'}`;
-                }
-            });
+      });
+    }
+ 
+    // =====================================================
+    //  WEBSOCKET INIT — UNCHANGED from original
+    // =====================================================
+    function initBinanceWS() {
+      const streams = cryptos.map(c => `${c}@ticker`).join('/');
+      const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+      ws.onmessage = (e) => {
+        const data   = JSON.parse(e.data);
+        const ticker = data.stream.split('@')[0];
+        updateCard(ticker, parseFloat(data.data.c));
+      };
+    }
+ 
+    function initEodhdWS() {
+      const ws  = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
+      const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
+      ws.onopen    = () => { all.forEach(s => ws.send(JSON.stringify({ "action": "subscribe", "symbols": s }))); };
+      ws.onmessage = (e) => {
+        const res = JSON.parse(e.data);
+        if (res.s && res.p) updateCard(res.s, parseFloat(res.p));
+      };
+    }
+ 
+    // =====================================================
+    //  UPDATE CARD — core logic UNCHANGED, added:
+    //    • lastTickTime tracking + stale removal
+    //    • sigma score storage
+    //    • alert border class management
+    //    • throttled top-movers refresh trigger
+    // =====================================================
+    function updateCard(id, price) {
+      const pEl    = document.getElementById(`price_${id}`);
+      const pctEl  = document.getElementById(`pct_${id}`);
+      const gEl    = document.getElementById(`gauge_${id}`);
+      const cardEl = document.getElementById(`card_${id}`);
+      if (!pEl) return;
+ 
+      // Track tick time, remove stale styling
+      lastTickTime[id] = Date.now();
+      if (cardEl) cardEl.classList.remove('stale-data');
+ 
+      const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+      pEl.innerText = price.toFixed(dec);
+ 
+      const base = prevCloses[id];
+      const sd   = stdDeviations[id];
+      if (base && base > 0) {
+        const pct = ((price - base) / base) * 100;
+        pctEl.innerText   = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
+        pctEl.className   = `pct ${pct >= 0 ? 'positive-text' : 'negative-text'}`;
+ 
+        if (gEl && sd) {
+          const diff   = price - base;
+          const moveSD = diff / sd;
+ 
+          // Gauge fill — UNCHANGED logic
+          let fill = (Math.abs(moveSD) / GAUGE_MAX_SD) * 50;
+          if (fill > 50) fill = 50;
+          gEl.style.width = fill + '%';
+          gEl.className   = `gauge-bar ${diff >= 0 ? 'positive' : 'negative'}`;
+ 
+          // Store sigma score for top-movers
+          sigmaScores[id] = moveSD;
+ 
+          // Apply alert border based on σ level
+          if (cardEl) {
+            cardEl.classList.remove('alert-2sd', 'alert-3sd');
+            const absSD = Math.abs(moveSD);
+            if      (absSD >= 3.0) cardEl.classList.add('alert-3sd');
+            else if (absSD >= 2.0) cardEl.classList.add('alert-2sd');
+          }
         }
-
-        function initBinanceWS() {
-            const streams = cryptos.map(c => `${c}@ticker`).join('/');
-            const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-            ws.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                const ticker = data.stream.split('@')[0];
-                updateCard(ticker, parseFloat(data.data.c));
-            };
+      }
+ 
+      // Throttle top-movers panel refresh (max 1 update / 800ms)
+      if (!topMoversTimer) {
+        topMoversTimer = setTimeout(() => {
+          updateTopMovers();
+          topMoversTimer = null;
+        }, 800);
+      }
+    }
+ 
+    // =====================================================
+    //  TOP MOVERS PANEL — NEW
+    // =====================================================
+    function updateTopMovers() {
+      const panel = document.getElementById('top-movers-panel');
+      if (!panel) return;
+ 
+      const entries = Object.entries(sigmaScores)
+        .filter(([, v]) => !isNaN(v) && isFinite(v));
+ 
+      if (entries.length === 0) {
+        panel.innerHTML = '<span class="movers-placeholder">In attesa dei prezzi...</span>';
+        return;
+      }
+ 
+      entries.sort((a, b) => b[1] - a[1]);
+ 
+      const top3G = entries.slice(0, Math.min(3, entries.length));
+      const top3L = entries.slice(-Math.min(3, entries.length)).reverse();
+ 
+      const fmt = (id, val) => {
+        const disp  = id.includes('usdt') ? id.toUpperCase().replace('USDT', '') : id;
+        const sign  = val >= 0 ? '+' : '';
+        const cls   = val >= 0 ? 'positive-text' : 'negative-text';
+        const arrow = val >= 0 ? '▲' : '▼';
+        return `<span class="mover-item ${cls}">${arrow}&nbsp;<span style="color:#fff;font-weight:bold">${disp}</span>&nbsp;${sign}${val.toFixed(2)}σ</span>`;
+      };
+ 
+      const gainersHTML = top3G.map(([id, v]) => fmt(id, v)).join('');
+      const losersHTML  = top3L.map(([id, v]) => fmt(id, v)).join('');
+ 
+      panel.innerHTML = `
+        <div class="movers-group">${gainersHTML}</div>
+        <span class="movers-divider">│</span>
+        <div class="movers-group">${losersHTML}</div>`;
+    }
+ 
+    // =====================================================
+    //  STALE DATA CHECK — NEW
+    //  Runs every 60s. Marks cards with no tick for ≥5 min
+    //  with an amber dimmed border. Skips cards in σ alert.
+    // =====================================================
+    function checkStaleData() {
+      const STALE_MS = 5 * 60 * 1000; // 5 minutes
+      const now      = Date.now();
+      const all      = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
+ 
+      all.forEach(id => {
+        const cardEl = document.getElementById(`card_${id}`);
+        if (!cardEl || !lastTickTime[id]) return; // skip if never received a tick
+ 
+        const isStale  = (now - lastTickTime[id]) > STALE_MS;
+        const hasAlert = cardEl.classList.contains('alert-2sd') || cardEl.classList.contains('alert-3sd');
+ 
+        if (isStale && !hasAlert) {
+          cardEl.classList.add('stale-data');
         }
-
-        function initEodhdWS() {
-            const ws = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
-            const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
-            ws.onopen = () => { all.forEach(s => ws.send(JSON.stringify({"action": "subscribe", "symbols": s}))); };
-            ws.onmessage = (e) => {
-                const res = JSON.parse(e.data);
-                if (res.s && res.p) updateCard(res.s, parseFloat(res.p));
-            };
-        }
-
-        function updateCard(id, price) {
-            const pEl = document.getElementById(`price_${id}`);
-            const pctEl = document.getElementById(`pct_${id}`);
-            const gEl = document.getElementById(`gauge_${id}`);
-            if (!pEl) return;
-            const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
-            pEl.innerText = price.toFixed(dec);
-            const base = prevCloses[id];
-            const sd = stdDeviations[id];
-            if (base && base > 0) {
-                const pct = ((price - base) / base) * 100;
-                pctEl.innerText = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
-                pctEl.className = `pct ${pct >= 0 ? 'positive-text' : 'negative-text'}`;
-                if (gEl && sd) {
-                    const diff = price - base;
-                    const moveSD = diff / sd;
-                    let fill = (Math.abs(moveSD) / GAUGE_MAX_SD) * 50;
-                    if (fill > 50) fill = 50;
-                    gEl.style.width = fill + '%';
-                    gEl.className = `gauge-bar ${diff >= 0 ? 'positive' : 'negative'}`;
-                }
-            }
-        }
-    </script>
+      });
+    }
+  </script>
 </body>
 </html>
+ 
+
