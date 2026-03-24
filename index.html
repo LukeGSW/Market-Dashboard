@@ -263,6 +263,50 @@
       margin-top: 7px;
       font-family: sans-serif;
     }
+
+    /* ===== CARD TRADINGVIEW CLICK ===== */
+    .card { cursor: pointer; }
+    .tv-hint {
+      position: absolute;
+      bottom: 5px;
+      right: 7px;
+      font-size: 0.58rem;
+      color: #2962ff;
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-family: sans-serif;
+      letter-spacing: 0.3px;
+      font-weight: bold;
+    }
+    .card:hover .tv-hint { opacity: 0.85; }
+
+    /* ===== WEBSOCKET STATUS BAR ===== */
+    #ws-status-bar {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 0.68rem;
+      color: #555;
+      font-family: sans-serif;
+    }
+    .ws-indicator { display: flex; align-items: center; gap: 5px; }
+    .ws-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2a2a2a;
+      transition: background 0.4s, box-shadow 0.4s;
+      flex-shrink: 0;
+    }
+    .ws-dot.connected    { background: #00cc44; box-shadow: 0 0 6px rgba(0,204,68,0.55); }
+    .ws-dot.connecting   { background: #ff9900; animation: blink-dot 0.75s ease-in-out infinite; }
+    .ws-dot.disconnected { background: #cc2200; box-shadow: 0 0 4px rgba(200,34,0,0.45); }
+    @keyframes blink-dot {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
+    }
+    .ws-label { letter-spacing: 0.8px; }
   </style>
 </head>
 <body>
@@ -279,6 +323,18 @@
   <div id="dashboard">
     <button onclick="clearApiKey()" style="float: right; font-size: 0.75rem; padding: 5px 10px;">Reset API Key / Cache</button>
     <div id="debug-bar"></div>
+
+    <!-- ===== WEBSOCKET STATUS BAR ===== -->
+    <div id="ws-status-bar">
+      <div class="ws-indicator">
+        <div class="ws-dot connecting" id="dot-eodhd"></div>
+        <span class="ws-label" id="label-eodhd">EODHD</span>
+      </div>
+      <div class="ws-indicator">
+        <div class="ws-dot connecting" id="dot-binance"></div>
+        <span class="ws-label" id="label-binance">BINANCE</span>
+      </div>
+    </div>
 
     <!-- ===== TOP MOVERS PANEL ===== -->
     <div id="top-movers-container">
@@ -432,7 +488,7 @@
     }
 
     function createCardHTML(display, id = display) {
-      return `<div class="card" id="card_${id}">
+      return `<div class="card" id="card_${id}" onclick="openTradingView('${id}')">
         <div class="ticker-name">${display}</div>
         <div class="price neutral-text" id="price_${id}">--.---</div>
         <div class="pct neutral-text" id="pct_${id}">0.00%</div>
@@ -445,6 +501,7 @@
           <div class="gauge-center-mark"></div>
           <div class="prev-close-label" id="label_${id}">Prev: -- | 1σ: --</div>
         </div>
+        <div class="tv-hint">TV ↗</div>
       </div>`;
     }
 
@@ -465,26 +522,61 @@
     }
 
     // =====================================================
-    //  WEBSOCKET INIT — UNCHANGED from original
+    //  WEBSOCKET STATUS HELPER
+    // =====================================================
+    function setWsStatus(feed, status) {
+      // status: 'connecting' | 'connected' | 'disconnected'
+      const dot = document.getElementById(`dot-${feed}`);
+      const lbl = document.getElementById(`label-${feed}`);
+      if (!dot || !lbl) return;
+      dot.className = `ws-dot ${status}`;
+      lbl.style.color = status === 'connected' ? '#555'
+                       : status === 'connecting' ? '#ff9900'
+                       : '#cc3300';
+    }
+
+    // =====================================================
+    //  WEBSOCKET INIT — data logic UNCHANGED,
+    //  added: status indicators + auto-reconnect on close
     // =====================================================
     function initBinanceWS() {
+      setWsStatus('binance', 'connecting');
       const streams = cryptos.map(c => `${c}@ticker`).join('/');
       const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+      ws.onopen    = () => { setWsStatus('binance', 'connected'); };
       ws.onmessage = (e) => {
         const data   = JSON.parse(e.data);
         const ticker = data.stream.split('@')[0];
         updateCard(ticker, parseFloat(data.data.c));
       };
+      ws.onclose   = () => { setWsStatus('binance', 'disconnected'); setTimeout(initBinanceWS, 4000); };
+      ws.onerror   = () => { setWsStatus('binance', 'disconnected'); };
     }
 
     function initEodhdWS() {
+      setWsStatus('eodhd', 'connecting');
       const ws  = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
       const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
-      ws.onopen    = () => { all.forEach(s => ws.send(JSON.stringify({ "action": "subscribe", "symbols": s }))); };
+      ws.onopen    = () => {
+        setWsStatus('eodhd', 'connected');
+        all.forEach(s => ws.send(JSON.stringify({ "action": "subscribe", "symbols": s })));
+      };
       ws.onmessage = (e) => {
         const res = JSON.parse(e.data);
         if (res.s && res.p) updateCard(res.s, parseFloat(res.p));
       };
+      ws.onclose   = () => { setWsStatus('eodhd', 'disconnected'); setTimeout(initEodhdWS, 4000); };
+      ws.onerror   = () => { setWsStatus('eodhd', 'disconnected'); };
+    }
+
+    // =====================================================
+    //  TRADINGVIEW LINK — click card → opens chart
+    // =====================================================
+    function openTradingView(id) {
+      const url = id.includes('usdt')
+        ? `https://www.tradingview.com/chart/?symbol=BINANCE:${id.toUpperCase()}`
+        : `https://www.tradingview.com/chart/?symbol=${id}`;
+      window.open(url, '_blank');
     }
 
     // =====================================================
