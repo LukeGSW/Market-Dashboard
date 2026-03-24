@@ -1,0 +1,118 @@
+{
+    "SPY": {
+        "prevClose": 655.38,
+        "stdDev": 7.682672028677653
+    },
+    "QQQ": {
+        "prevClose": 588.0,
+        "stdDev": 9.96688213366702
+    },
+    "DIA": {
+        "prevClose": 461.97,
+        "stdDev": 5.403160580941064
+    },
+    "IWM": {
+        "prevClose": 247.45,
+        "stdDev": 3.7387452095537603
+    },
+    "EWG": {
+        "prevClose": 39.32,
+        "stdDev": 0.627250472005172
+    },
+    "EWJ": {
+        "prevClose": 83.55,
+        "stdDev": 1.1862836970351345
+    },
+    "AAPL": {
+        "prevClose": 251.49,
+        "stdDev": 7.042455228515303
+    },
+    "NVDA": {
+        "prevClose": 175.64,
+        "stdDev": 6.552019837944998
+    },
+    "TSLA": {
+        "prevClose": 380.85,
+        "stdDev": 13.742937673385134
+    },
+    "MSFT": {
+        "prevClose": 383.0,
+        "stdDev": 8.00288753031293
+    },
+    "AMZN": {
+        "prevClose": 210.14,
+        "stdDev": 7.210328500380178
+    },
+    "META": {
+        "prevClose": 604.06,
+        "stdDev": 15.094967608811336
+    },
+    "GOOGL": {
+        "prevClose": 302.06,
+        "stdDev": 5.7921954005211616
+    },
+    "PG": {
+        "prevClose": 143.99,
+        "stdDev": 1.9461662559018293
+    },
+    "WMT": {
+        "prevClose": 120.72,
+        "stdDev": 2.2231642044060114
+    },
+    "JNJ": {
+        "prevClose": 235.42,
+        "stdDev": 3.3760703077879666
+    },
+    "KO": {
+        "prevClose": 75.11,
+        "stdDev": 1.080299266270456
+    },
+    "JPM": {
+        "prevClose": 289.91,
+        "stdDev": 6.509366889240564
+    },
+    "XOM": {
+        "prevClose": 161.13,
+        "stdDev": 2.34478047211621
+    },
+    "AMAT": {
+        "prevClose": 361.79,
+        "stdDev": 10.96424630176916
+    },
+    "AEM": {
+        "prevClose": 184.04,
+        "stdDev": 5.653661802175411
+    },
+    "TLT": {
+        "prevClose": 86.385,
+        "stdDev": 0.7804965023775421
+    },
+    "GLD": {
+        "prevClose": 404.04,
+        "stdDev": 4.602700276483086
+    },
+    "SLV": {
+        "prevClose": 62.47,
+        "stdDev": 1.3142706658316097
+    },
+    "USO": {
+        "prevClose": 110.56,
+        "stdDev": 2.5769874452377
+    },
+    "UNG": {
+        "prevClose": 11.73,
+        "stdDev": 0.36589029709726467
+    },
+    "CPER": {
+        "prevClose": 33.53,
+        "stdDev": 0.5265044181595577
+    },
+    "FXE": {
+        "prevClose": 107.17,
+        "stdDev": 0.6020515743158985
+    },
+    "FXY": {
+        "prevClose": 57.96,
+        "stdDev": 0.37046639031914697
+    }
+}
