@@ -35,11 +35,11 @@
     <div id="auth-section">
         <p>Inserisci la API Key per attivare i WebSocket EODHD in streaming.</p>
         <input type="text" id="api_key_input" placeholder="EODHD API Token">
-        <button onclick="saveApiKey()">Connetti Terminale Live</button>
+        <button id="connect-btn" onclick="saveApiKey()">Connetti Terminale Live</button>
     </div>
 
     <div id="dashboard">
-        <button onclick="clearApiKey()" style="float: right; font-size: 0.8rem; padding: 5px 10px;">Reset API Key WS</button>
+        <button onclick="clearApiKey()" style="float: right; font-size: 0.8rem; padding: 5px 10px;">Reset API Key / Cache</button>
         <div id="debug-bar"></div>
         
         <h2>Indici & ETF</h2><div id="grid-indices" class="grid-container"></div>
@@ -58,23 +58,32 @@
         };
         const cryptos = ["btcusdt", "ethusdt", "solusdt"];
         let eodToken = "";
-        
         let prevCloses = {}; 
         let stdDeviations = {}; 
         const GAUGE_MAX_SD = 3.0; 
 
         window.onload = function() {
             const storedKey = localStorage.getItem('eodhd_api_token');
-            if (storedKey) { eodToken = storedKey; startTerminal(); }
+            if (storedKey) {
+                eodToken = storedKey;
+                startTerminal();
+            }
         };
 
         function saveApiKey() {
             const key = document.getElementById('api_key_input').value.trim();
-            if (key) { localStorage.setItem('eodhd_api_token', key); eodToken = key; startTerminal(); }
+            if (key) {
+                localStorage.setItem('eodhd_api_token', key);
+                eodToken = key;
+                startTerminal();
+            } else {
+                alert("Inserisci un token valido.");
+            }
         }
 
         function clearApiKey() {
-            localStorage.removeItem('eodhd_api_token'); location.reload();
+            localStorage.removeItem('eodhd_api_token');
+            location.reload();
         }
 
         async function startTerminal() {
@@ -82,144 +91,126 @@
             document.getElementById('dashboard').style.display = 'block';
             buildUI();
             
-            document.getElementById('debug-bar').innerText = "Caricamento statistiche di base (data.json)...";
+            const debugEl = document.getElementById('debug-bar');
+            debugEl.innerText = "Sincronizzazione data.json...";
             
             try {
-                // Fetch del database generato dalla GitHub Action
                 const res = await fetch('./data.json?t=' + Date.now());
-                if (!res.ok) throw new Error(`File data.json non trovato (HTTP ${res.status}). Attendi il deploy di GitHub Pages.`);
+                if (!res.ok) throw new Error("Dati base non trovati. Verifica GitHub Actions.");
                 
                 const db = await res.json();
-                
                 for (const ticker in db) {
                     prevCloses[ticker] = db[ticker].prevClose;
                     stdDeviations[ticker] = db[ticker].stdDev;
                 }
                 
-                document.getElementById('debug-bar').innerText = "Database sincronizzato. Apertura WebSocket...";
-                document.getElementById('debug-bar').style.color = "#00ff00";
-                setTimeout(() => { document.getElementById('debug-bar').innerText = ""; }, 3000);
+                debugEl.innerText = "Dati caricati. Avvio flussi WebSocket...";
+                setTimeout(() => { debugEl.innerText = ""; }, 3000);
                 
                 updateAllLabels();
                 initBinanceWS();
                 initEodhdWS();
                 
             } catch(e) {
-                console.error(e);
-                document.getElementById('debug-bar').innerText = e.message;
-                document.getElementById('debug-bar').style.color = "#ff0000";
+                debugEl.innerText = "Errore: " + e.message;
+                debugEl.style.color = "#ff0000";
             }
         }
 
         function buildUI() {
+            const containers = {
+                "indices": document.getElementById('grid-indices'),
+                "mag7": document.getElementById('grid-mag7'),
+                "value": document.getElementById('grid-value'),
+                "commodities": document.getElementById('grid-commodities'),
+                "crypto": document.getElementById('grid-crypto')
+            };
+
             for (const [group, tickers] of Object.entries(assetGroups)) {
-                const container = document.getElementById(`grid-${group}`);
-                tickers.forEach(ticker => { container.innerHTML += createCardHTML(ticker); });
+                tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
             }
-            const cryptoContainer = document.getElementById('grid-crypto');
-            cryptos.forEach(crypto => {
-                const displayTicker = crypto.toUpperCase().replace('USDT', '');
-                cryptoContainer.innerHTML += createCardHTML(displayTicker, crypto);
+            cryptos.forEach(c => { 
+                const display = c.toUpperCase().replace('USDT', '');
+                containers["crypto"].innerHTML += createCardHTML(display, c); 
             });
         }
 
-        function createCardHTML(displayTicker, internalId = displayTicker) {
+        function createCardHTML(display, id = display) {
             return `
-                <div class="card" id="card_${internalId}">
-                    <div class="ticker-name">${displayTicker}</div>
-                    <div class="price neutral-text" id="price_${internalId}">--.---</div>
-                    <div class="pct neutral-text" id="pct_${internalId}">0.00%</div>
+                <div class="card">
+                    <div class="ticker-name">${display}</div>
+                    <div class="price neutral-text" id="price_${id}">--.---</div>
+                    <div class="pct neutral-text" id="pct_${id}">0.00%</div>
                     <div class="gauge-container">
                         <div class="gauge-track">
-                            <div class="sd-marker left-2sd" title="-2 SD"></div>
-                            <div class="sd-marker right-2sd" title="+2 SD"></div>
-                            <div class="gauge-bar" id="gauge_bar_${internalId}"></div>
+                            <div class="sd-marker left-2sd"></div>
+                            <div class="sd-marker right-2sd"></div>
+                            <div class="gauge-bar" id="gauge_${id}"></div>
                         </div>
                         <div class="gauge-center-mark"></div>
-                        <div class="prev-close-label" id="prev_label_${internalId}">Prev: -- | 1σ: --</div>
+                        <div class="prev-close-label" id="label_${id}">Prev: -- | 1σ: --</div>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
 
         function updateAllLabels() {
-            const allSymbols = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
-            allSymbols.forEach(id => {
-                const prevLabel = document.getElementById(`prev_label_${id}`);
-                const decimals = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
-                const basePrice = prevCloses[id];
-                const oneSDValue = stdDeviations[id];
-                
-                if (prevLabel && basePrice) {
-                    let sdText = oneSDValue ? ` | 1σ: ${(oneSDValue).toFixed(decimals)}` : '';
-                    prevLabel.innerText = `Prev: ${basePrice.toFixed(decimals)}${sdText}`;
+            const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
+            all.forEach(id => {
+                const label = document.getElementById(`label_${id}`);
+                const prec = prevCloses[id];
+                const sd = stdDeviations[id];
+                const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+                if (label && prec) {
+                    label.innerText = `Prev: ${prec.toFixed(dec)} | 1σ: ${sd ? sd.toFixed(dec) : '--'}`;
                 }
             });
         }
 
-        // --- WEBSOCKETS ---
         function initBinanceWS() {
             const streams = cryptos.map(c => `${c}@ticker`).join('/');
             const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-            ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                const ticker = msg.stream.split('@')[0];
-                
-                // Nessun override con l'Open di Binance (msg.data.o). 
-                // Ci fidiamo ciecamente della chiusura notturna nel data.json.
-                updateCard(ticker, parseFloat(msg.data.c), null);
+            ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                const ticker = data.stream.split('@')[0];
+                updateCard(ticker, parseFloat(data.data.c));
             };
         }
 
         function initEodhdWS() {
-            const wsUs = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
-            const allUsTickers = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
-            wsUs.onopen = () => { allUsTickers.forEach(ticker => { wsUs.send(JSON.stringify({"action": "subscribe", "symbols": ticker})); }); };
-            wsUs.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data && data.s && data.p) {
-                        updateCard(data.s, parseFloat(data.p), null);
-                    }
-                } catch (e) {}
+            const ws = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
+            const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
+            ws.onopen = () => { all.forEach(s => ws.send(JSON.stringify({"action": "subscribe", "symbols": s}))); };
+            ws.onmessage = (e) => {
+                const res = JSON.parse(e.data);
+                if (res.s && res.p) updateCard(res.s, parseFloat(res.p));
             };
         }
 
-        // --- UI REFRESH ---
-        function updateCard(id, price, forcedPct = null) {
-            const priceEl = document.getElementById(`price_${id}`);
+        function updateCard(id, price) {
+            const pEl = document.getElementById(`price_${id}`);
             const pctEl = document.getElementById(`pct_${id}`);
-            const gaugeBar = document.getElementById(`gauge_bar_${id}`);
-            
-            if (!priceEl) return;
+            const gEl = document.getElementById(`gauge_${id}`);
+            if (!pEl) return;
 
-            const decimals = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
-            priceEl.innerText = price.toFixed(decimals);
-            
-            const basePrice = prevCloses[id];
-            const oneSDValue = stdDeviations[id];
+            const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+            pEl.innerText = price.toFixed(dec);
 
-            let pct = 0;
+            const base = prevCloses[id];
+            const sd = stdDeviations[id];
 
-            if (forcedPct !== null) {
-                pct = forcedPct;
-            } else if (basePrice && basePrice > 0) {
-                // Calcolo % basato sulla chiusura fissa
-                pct = ((price - basePrice) / basePrice) * 100;
-            }
-
-            if (pctEl) {
+            if (base && base > 0) {
+                const pct = ((price - base) / base) * 100;
                 pctEl.innerText = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
                 pctEl.className = `pct ${pct >= 0 ? 'positive-text' : 'negative-text'}`;
-            }
 
-            if (gaugeBar && basePrice && oneSDValue) {
-                const priceDelta = price - basePrice;
-                const moveInSD = priceDelta / oneSDValue;
-                let fillPercentage = (Math.abs(moveInSD) / GAUGE_MAX_SD) * 50; 
-                if (fillPercentage > 50) fillPercentage = 50; 
-                gaugeBar.style.width = `${fillPercentage}%`;
-                gaugeBar.className = `gauge-bar ${priceDelta >= 0 ? 'positive' : 'negative'}`;
+                if (gEl && sd) {
+                    const diff = price - base;
+                    const moveSD = diff / sd;
+                    let fill = (Math.abs(moveSD) / GAUGE_MAX_SD) * 50;
+                    if (fill > 50) fill = 50;
+                    gEl.style.width = fill + '%';
+                    gEl.className = `gauge-bar ${diff >= 0 ? 'positive' : 'negative'}`;
+                }
             }
         }
     </script>
