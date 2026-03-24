@@ -85,9 +85,9 @@
             document.getElementById('debug-bar').innerText = "Caricamento statistiche di base (data.json)...";
             
             try {
-                // Legge istantaneamente il file generato da GitHub Actions (Zero API credits!)
-                // Aggiungiamo un cache-buster temporale per bypassare la cache del browser
                 const res = await fetch('data.json?t=' + Date.now());
+                if (!res.ok) throw new Error(`File data.json non trovato (HTTP ${res.status}). Assicurati che la GitHub Action sia terminata con successo.`);
+                
                 const db = await res.json();
                 
                 for (const ticker in db) {
@@ -104,7 +104,8 @@
                 initEodhdWS();
                 
             } catch(e) {
-                document.getElementById('debug-bar').innerText = "Errore: data.json non trovato. Avviare GitHub Actions.";
+                console.error(e);
+                document.getElementById('debug-bar').innerText = e.message;
                 document.getElementById('debug-bar').style.color = "#ff0000";
             }
         }
@@ -162,19 +163,8 @@
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 const ticker = msg.stream.split('@')[0];
-                updateCard(ticker, parseFloat(msg.data.c));
-            };
-        }
-
-        function initBinanceWS() {
-            const streams = cryptos.map(c => `${c}@ticker`).join('/');
-            const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
-            ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                const ticker = msg.stream.split('@')[0];
                 
-                // FIX: Allinea la % a quella ufficiale di Binance usando l'Open a 24h (msg.data.o) 
-                // Invece di usare la chiusura fissa di mezzanotte di EODHD.
+                // FIX Binance: Allinea la base statistica all'Open rolling delle 24h
                 if (msg.data && msg.data.o) {
                     prevCloses[ticker] = parseFloat(msg.data.o);
                 }
@@ -183,7 +173,21 @@
             };
         }
 
-        // --- UI REFRESH (Senza fetch integrato) ---
+        function initEodhdWS() {
+            const wsUs = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
+            const allUsTickers = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
+            wsUs.onopen = () => { allUsTickers.forEach(ticker => { wsUs.send(JSON.stringify({"action": "subscribe", "symbols": ticker})); }); };
+            wsUs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data && data.s && data.p) {
+                        updateCard(data.s, parseFloat(data.p));
+                    }
+                } catch (e) {}
+            };
+        }
+
+        // --- UI REFRESH ---
         function updateCard(id, price) {
             const priceEl = document.getElementById(`price_${id}`);
             const pctEl = document.getElementById(`pct_${id}`);
