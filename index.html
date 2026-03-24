@@ -85,9 +85,9 @@
             document.getElementById('debug-bar').innerText = "Caricamento statistiche di base (data.json)...";
             
             try {
-                // Legge il file con cache buster
+                // Fetch del database generato dalla GitHub Action
                 const res = await fetch('./data.json?t=' + Date.now());
-                if (!res.ok) throw new Error(`File data.json non trovato (HTTP ${res.status}). Aspetta 1 minuto o controlla GitHub Actions.`);
+                if (!res.ok) throw new Error(`File data.json non trovato (HTTP ${res.status}). Attendi il deploy di GitHub Pages.`);
                 
                 const db = await res.json();
                 
@@ -158,24 +158,16 @@
         }
 
         // --- WEBSOCKETS ---
-       function initBinanceWS() {
+        function initBinanceWS() {
             const streams = cryptos.map(c => `${c}@ticker`).join('/');
             const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 const ticker = msg.stream.split('@')[0];
                 
-                // Rimosso l'override con msg.data.o (24h rolling window).
-                // Ora la dashboard manterrà la chiusura UTC di mezzanotte scaricata dal data.json
-                
-                // Passiamo 'null' come terzo parametro per forzare updateCard a 
-                // ricalcolare la % basandosi matematicamente sulla chiusura fissa.
+                // Nessun override con l'Open di Binance (msg.data.o). 
+                // Ci fidiamo ciecamente della chiusura notturna nel data.json.
                 updateCard(ticker, parseFloat(msg.data.c), null);
-            };
-        }
-                
-                // Passiamo la percentuale esatta di Binance (msg.data.P) per non calcolarla noi
-                updateCard(ticker, parseFloat(msg.data.c), parseFloat(msg.data.P));
             };
         }
 
@@ -187,15 +179,13 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data && data.s && data.p) {
-                        // Per le stock non passiamo la %, così la calcola matematicamente dalla chiusura
-                        updateCard(data.s, parseFloat(data.p));
+                        updateCard(data.s, parseFloat(data.p), null);
                     }
                 } catch (e) {}
             };
         }
 
         // --- UI REFRESH ---
-        // Aggiunto forcedPct per permettere a Binance di scavalcare i calcoli
         function updateCard(id, price, forcedPct = null) {
             const priceEl = document.getElementById(`price_${id}`);
             const pctEl = document.getElementById(`pct_${id}`);
@@ -210,12 +200,11 @@
             const oneSDValue = stdDeviations[id];
 
             let pct = 0;
-            
+
             if (forcedPct !== null) {
-                // Usa il dato esatto dell'exchange se fornito (Crypto)
                 pct = forcedPct;
             } else if (basePrice && basePrice > 0) {
-                // Calcolo classico (Stock)
+                // Calcolo % basato sulla chiusura fissa
                 pct = ((price - basePrice) / basePrice) * 100;
             }
 
