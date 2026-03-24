@@ -85,8 +85,9 @@
             document.getElementById('debug-bar').innerText = "Caricamento statistiche di base (data.json)...";
             
             try {
-                const res = await fetch('data.json?t=' + Date.now());
-                if (!res.ok) throw new Error(`File data.json non trovato (HTTP ${res.status}). Assicurati che la GitHub Action sia terminata con successo.`);
+                // Legge il file con cache buster
+                const res = await fetch('./data.json?t=' + Date.now());
+                if (!res.ok) throw new Error(`File data.json non trovato (HTTP ${res.status}). Aspetta 1 minuto o controlla GitHub Actions.`);
                 
                 const db = await res.json();
                 
@@ -164,12 +165,17 @@
                 const msg = JSON.parse(event.data);
                 const ticker = msg.stream.split('@')[0];
                 
-                // FIX Binance: Allinea la base statistica all'Open rolling delle 24h
+                // Aggiorniamo la base e la label per il calcolo dello slider
                 if (msg.data && msg.data.o) {
                     prevCloses[ticker] = parseFloat(msg.data.o);
+                    const prevLabel = document.getElementById(`prev_label_${ticker}`);
+                    if(prevLabel && stdDeviations[ticker]) {
+                        prevLabel.innerText = `Prev: ${parseFloat(msg.data.o).toFixed(2)} | 1σ: ${stdDeviations[ticker].toFixed(2)}`;
+                    }
                 }
                 
-                updateCard(ticker, parseFloat(msg.data.c));
+                // Passiamo la percentuale esatta di Binance (msg.data.P) per non calcolarla noi
+                updateCard(ticker, parseFloat(msg.data.c), parseFloat(msg.data.P));
             };
         }
 
@@ -181,6 +187,7 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data && data.s && data.p) {
+                        // Per le stock non passiamo la %, così la calcola matematicamente dalla chiusura
                         updateCard(data.s, parseFloat(data.p));
                     }
                 } catch (e) {}
@@ -188,7 +195,8 @@
         }
 
         // --- UI REFRESH ---
-        function updateCard(id, price) {
+        // Aggiunto forcedPct per permettere a Binance di scavalcare i calcoli
+        function updateCard(id, price, forcedPct = null) {
             const priceEl = document.getElementById(`price_${id}`);
             const pctEl = document.getElementById(`pct_${id}`);
             const gaugeBar = document.getElementById(`gauge_bar_${id}`);
@@ -201,19 +209,28 @@
             const basePrice = prevCloses[id];
             const oneSDValue = stdDeviations[id];
 
-            if (basePrice && basePrice > 0) {
-                const pct = ((price - basePrice) / basePrice) * 100;
+            let pct = 0;
+            
+            if (forcedPct !== null) {
+                // Usa il dato esatto dell'exchange se fornito (Crypto)
+                pct = forcedPct;
+            } else if (basePrice && basePrice > 0) {
+                // Calcolo classico (Stock)
+                pct = ((price - basePrice) / basePrice) * 100;
+            }
+
+            if (pctEl) {
                 pctEl.innerText = (pct > 0 ? '+' : '') + pct.toFixed(2) + '%';
                 pctEl.className = `pct ${pct >= 0 ? 'positive-text' : 'negative-text'}`;
+            }
 
-                if (gaugeBar && oneSDValue) {
-                    const priceDelta = price - basePrice;
-                    const moveInSD = priceDelta / oneSDValue;
-                    let fillPercentage = (Math.abs(moveInSD) / GAUGE_MAX_SD) * 50; 
-                    if (fillPercentage > 50) fillPercentage = 50; 
-                    gaugeBar.style.width = `${fillPercentage}%`;
-                    gaugeBar.className = `gauge-bar ${priceDelta >= 0 ? 'positive' : 'negative'}`;
-                }
+            if (gaugeBar && basePrice && oneSDValue) {
+                const priceDelta = price - basePrice;
+                const moveInSD = priceDelta / oneSDValue;
+                let fillPercentage = (Math.abs(moveInSD) / GAUGE_MAX_SD) * 50; 
+                if (fillPercentage > 50) fillPercentage = 50; 
+                gaugeBar.style.width = `${fillPercentage}%`;
+                gaugeBar.className = `gauge-bar ${priceDelta >= 0 ? 'positive' : 'negative'}`;
             }
         }
     </script>
