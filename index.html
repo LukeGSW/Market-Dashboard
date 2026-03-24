@@ -158,21 +158,21 @@
         }
 
         // --- WEBSOCKETS ---
-        function initBinanceWS() {
+       function initBinanceWS() {
             const streams = cryptos.map(c => `${c}@ticker`).join('/');
             const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 const ticker = msg.stream.split('@')[0];
                 
-                // Aggiorniamo la base e la label per il calcolo dello slider
-                if (msg.data && msg.data.o) {
-                    prevCloses[ticker] = parseFloat(msg.data.o);
-                    const prevLabel = document.getElementById(`prev_label_${ticker}`);
-                    if(prevLabel && stdDeviations[ticker]) {
-                        prevLabel.innerText = `Prev: ${parseFloat(msg.data.o).toFixed(2)} | 1σ: ${stdDeviations[ticker].toFixed(2)}`;
-                    }
-                }
+                // Rimosso l'override con msg.data.o (24h rolling window).
+                // Ora la dashboard manterrà la chiusura UTC di mezzanotte scaricata dal data.json
+                
+                // Passiamo 'null' come terzo parametro per forzare updateCard a 
+                // ricalcolare la % basandosi matematicamente sulla chiusura fissa.
+                updateCard(ticker, parseFloat(msg.data.c), null);
+            };
+        }
                 
                 // Passiamo la percentuale esatta di Binance (msg.data.P) per non calcolarla noi
                 updateCard(ticker, parseFloat(msg.data.c), parseFloat(msg.data.P));
