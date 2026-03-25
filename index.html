@@ -396,7 +396,24 @@
       "bonds_forex": ["TLT", "HYG", "FXE", "FXY"]
     };
 
-    const sectorNames = {
+    // NUOVO: Dizionario globale per TUTTI i sottotitoli
+    const tickerSubtitles = {
+      // Indici
+      "SPY": "S&P 500",
+      "QQQ": "Nasdaq 100",
+      "DIA": "Dow Jones",
+      "IWM": "Russell 2000",
+      "DAX": "DAX 40",
+      "VT":  "Total World",
+      "EEM": "Emerging Mkts",
+      
+      // Azioni
+      "NVDA": "Nvidia Corp",
+      "PG":   "Procter & Gamble",
+      "WMT":  "Walmart Inc",
+      "AEM":  "Agnico Eagle",
+
+      // Settori
       "XLK": "Technology",
       "XLV": "Healthcare",
       "XLF": "Financials",
@@ -404,7 +421,25 @@
       "XLI": "Industrials",
       "XLP": "Cons Staples",
       "XLE": "Energy",
-      "XLU": "Utilities"
+      "XLU": "Utilities",
+
+      // Materie Prime
+      "GLD":  "Gold",
+      "SLV":  "Silver",
+      "USO":  "Crude Oil",
+      "UNG":  "Nat Gas",
+      "CPER": "Copper",
+
+      // Bonds & Forex
+      "TLT": "20+Y Treasury",
+      "HYG": "High Yield",
+      "FXE": "Euro",
+      "FXY": "Japanese Yen",
+
+      // Crypto
+      "btcusdt": "Bitcoin",
+      "ethusdt": "Ethereum",
+      "solusdt": "Solana"
     };
 
     const cryptos = ["btcusdt", "ethusdt", "solusdt"];
@@ -416,9 +451,9 @@
     // =====================================================
     //  UI STATE TRACKERS
     // =====================================================
-    let sigmaScores    = {};   // id → current σ score
-    let lastTickTime   = {};   // id → timestamp of last received tick
-    let topMoversTimer = null; // throttle handle for top-movers refresh
+    let sigmaScores    = {};   
+    let lastTickTime   = {};   
+    let topMoversTimer = null; 
 
     // =====================================================
     //  INIT 
@@ -447,7 +482,6 @@
       debugEl.innerText = "Sincronizzazione globale in corso...";
 
       try {
-        // 1. Carica Azioni da data.json
         const res = await fetch('./data.json?t=' + Date.now());
         if (res.ok) {
           const db = await res.json();
@@ -457,7 +491,6 @@
           }
         }
 
-        // 2. Carica Crypto da Binance REST 
         for (const c of cryptos) {
           try {
             const bRes  = await fetch(`https://api.binance.com/api/v3/klines?symbol=${c.toUpperCase()}&interval=1d&limit=22`);
@@ -482,14 +515,13 @@
         initBinanceWS();
         initEodhdWS();
 
-        // Check stale tickers every 60 seconds
         setInterval(checkStaleData, 60000);
 
       } catch (e) { debugEl.innerText = "Errore critico caricamento dati."; }
     }
 
     // =====================================================
-    //  BUILD UI — OTTIMIZZATA CON SOTTOTITOLI SETTORIALI
+    //  BUILD UI — AGGIORNATA PER TUTTI I SOTTOTITOLI
     // =====================================================
     function buildUI() {
       const containers = {
@@ -503,15 +535,15 @@
       
       for (const [group, tickers] of Object.entries(assetGroups)) {
         tickers.forEach(t => { 
-          // Seleziona il nome del settore solo se presente, altrimenti stringa vuota
-          const subtitle = (group === "sectors" && sectorNames[t]) ? sectorNames[t] : "";
+          const subtitle = tickerSubtitles[t] || "";
           containers[group].innerHTML += createCardHTML(t, t, subtitle); 
         });
       }
       
       cryptos.forEach(c => {
         const display = c.toUpperCase().replace('USDT', '');
-        containers["crypto"].innerHTML += createCardHTML(display, c);
+        const subtitle = tickerSubtitles[c] || "";
+        containers["crypto"].innerHTML += createCardHTML(display, c, subtitle);
       });
     }
 
