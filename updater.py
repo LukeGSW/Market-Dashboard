@@ -4,10 +4,11 @@ import math
 import requests
 
 API_TOKEN = os.environ.get("EODHD_API_TOKEN")
-US_TICKERS = ["SPY", "QQQ", "DIA", "IWM", "EWG", "EWJ", 
-              "AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL",
-              "PG", "WMT", "JNJ", "KO", "JPM", "XOM", "AMAT", "AEM",
-              "TLT", "GLD", "SLV", "USO", "UNG", "CPER", "FXE", "FXY"]
+US_TICKERS = ["SPY", "QQQ", "DIA", "IWM", "DBXD", "IWDA", "EEM" 
+              "AAPL", "NVDA", "PG", "WMT", "AEM",
+              "XLK", "XLV", "XLF", "XLY", "XLI", "XLP", "XLE", "XLU",
+              "GLD", "SLV", "USO", "UNG", "CPER", 
+              "TLT", "HYG", "FXE", "FXY"]
 
 def calc_std_dev(prices):
     if len(prices) < 2: return None
