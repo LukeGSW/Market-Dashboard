@@ -187,7 +187,7 @@
     }
     @keyframes pulse-red {
       0%, 100% { box-shadow: 0 0 10px rgba(255, 55, 0, 0.32); }
-      50%       { box-shadow: 0 0 26px rgba(255, 55, 0, 0.65); }
+      50%        { box-shadow: 0 0 26px rgba(255, 55, 0, 0.65); }
     }
 
     /* ===== STALE DATA — no tick for 5 min ===== */
@@ -304,7 +304,7 @@
     .ws-dot.disconnected { background: #cc2200; box-shadow: 0 0 4px rgba(200,34,0,0.45); }
     @keyframes blink-dot {
       0%, 100% { opacity: 1; }
-      50%       { opacity: 0.25; }
+      50%        { opacity: 0.25; }
     }
     .ws-label { letter-spacing: 0.8px; }
   </style>
@@ -324,7 +324,6 @@
     <button onclick="clearApiKey()" style="float: right; font-size: 0.75rem; padding: 5px 10px;">Reset API Key / Cache</button>
     <div id="debug-bar"></div>
 
-    <!-- ===== WEBSOCKET STATUS BAR ===== -->
     <div id="ws-status-bar">
       <div class="ws-indicator">
         <div class="ws-dot connecting" id="dot-eodhd"></div>
@@ -336,7 +335,6 @@
       </div>
     </div>
 
-    <!-- ===== TOP MOVERS PANEL ===== -->
     <div id="top-movers-container">
       <span class="movers-label">TOP MOVERS (σ)</span>
       <div id="top-movers-panel">
@@ -344,7 +342,6 @@
       </div>
     </div>
 
-    <!-- ===== ALERT LEGEND ===== -->
     <div class="alert-legend">
       <span>
         <span class="legend-dot" style="background:rgba(255,204,0,0.85);"></span>
@@ -360,17 +357,20 @@
       </span>
     </div>
 
-    <h2>Indici &amp; ETF</h2>
+    <h2>Indici</h2>
     <div id="grid-indices" class="grid-container"></div>
 
-    <h2>Magnificent 7</h2>
-    <div id="grid-mag7" class="grid-container"></div>
+    <h2>Azioni</h2>
+    <div id="grid-stocks" class="grid-container"></div>
 
-    <h2>Value Stocks</h2>
-    <div id="grid-value" class="grid-container"></div>
+    <h2>Settori</h2>
+    <div id="grid-sectors" class="grid-container"></div>
 
-    <h2>Commodities, Bonds &amp; Forex (ETF)</h2>
+    <h2>Commodities</h2>
     <div id="grid-commodities" class="grid-container"></div>
+
+    <h2>Bonds & Forex (ETF)</h2>
+    <div id="grid-bonds-forex" class="grid-container"></div>
 
     <h2>Crypto (Binance)</h2>
     <div id="grid-crypto" class="grid-container"></div>
@@ -378,13 +378,14 @@
 
   <script>
     // =====================================================
-    //  DATA CONFIGURATION — UNCHANGED from original
+    //  DATA CONFIGURATION — AGGIORNATA
     // =====================================================
     const assetGroups = {
       "indices":     ["SPY", "QQQ", "DIA", "IWM", "EWG", "EWJ"],
-      "mag7":        ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL"],
-      "value":       ["PG", "WMT", "JNJ", "KO", "JPM", "XOM", "AMAT", "AEM"],
-      "commodities": ["TLT", "GLD", "SLV", "USO", "UNG", "CPER", "FXE", "FXY"]
+      "stocks":      ["NVDA", "PG", "WMT", "AEM"],
+      "sectors":     ["XLK", "XLV", "XLF", "XLY", "XLI", "XLP", "XLE", "XLU"],
+      "commodities": ["GLD", "SLV", "USO", "UNG", "CPER"],
+      "bonds_forex": ["TLT", "HYG", "FXE", "FXY"] // Corretta sintassi e chiave
     };
     const cryptos = ["btcusdt", "ethusdt", "solusdt"];
     let eodToken = "";
@@ -400,7 +401,7 @@
     let topMoversTimer = null; // throttle handle for top-movers refresh
 
     // =====================================================
-    //  INIT — UNCHANGED from original
+    //  INIT 
     // =====================================================
     window.onload = function () {
       const storedKey = localStorage.getItem('eodhd_api_token');
@@ -415,18 +416,18 @@
     function clearApiKey() { localStorage.removeItem('eodhd_api_token'); location.reload(); }
 
     // =====================================================
-    //  START TERMINAL — data logic UNCHANGED, added stale interval
+    //  START TERMINAL 
     // =====================================================
     async function startTerminal() {
       document.getElementById('auth-section').style.display = 'none';
-      document.getElementById('dashboard').style.display   = 'block';
+      document.getElementById('dashboard').style.display    = 'block';
       buildUI();
 
       const debugEl = document.getElementById('debug-bar');
       debugEl.innerText = "Sincronizzazione globale in corso...";
 
       try {
-        // 1. Carica Azioni da data.json — UNCHANGED
+        // 1. Carica Azioni da data.json
         const res = await fetch('./data.json?t=' + Date.now());
         if (res.ok) {
           const db = await res.json();
@@ -436,7 +437,7 @@
           }
         }
 
-        // 2. Carica Crypto da Binance REST — UNCHANGED
+        // 2. Carica Crypto da Binance REST 
         for (const c of cryptos) {
           try {
             const bRes  = await fetch(`https://api.binance.com/api/v3/klines?symbol=${c.toUpperCase()}&interval=1d&limit=22`);
@@ -461,26 +462,29 @@
         initBinanceWS();
         initEodhdWS();
 
-        // NEW: check stale tickers every 60 seconds
+        // Check stale tickers every 60 seconds
         setInterval(checkStaleData, 60000);
 
       } catch (e) { debugEl.innerText = "Errore critico caricamento dati."; }
     }
 
     // =====================================================
-    //  BUILD UI — added id="card_${id}" on each card
+    //  BUILD UI — AGGIORNATA CON I NUOVI CONTENITORI
     // =====================================================
     function buildUI() {
       const containers = {
         "indices":     document.getElementById('grid-indices'),
-        "mag7":        document.getElementById('grid-mag7'),
-        "value":       document.getElementById('grid-value'),
+        "stocks":      document.getElementById('grid-stocks'),
+        "sectors":     document.getElementById('grid-sectors'),
         "commodities": document.getElementById('grid-commodities'),
+        "bonds_forex": document.getElementById('grid-bonds-forex'),
         "crypto":      document.getElementById('grid-crypto')
       };
+      
       for (const [group, tickers] of Object.entries(assetGroups)) {
         tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
       }
+      
       cryptos.forEach(c => {
         const display = c.toUpperCase().replace('USDT', '');
         containers["crypto"].innerHTML += createCardHTML(display, c);
@@ -506,10 +510,11 @@
     }
 
     // =====================================================
-    //  UPDATE ALL LABELS — UNCHANGED from original
+    //  UPDATE ALL LABELS — OTTIMIZZATA DINAMICAMENTE
     // =====================================================
     function updateAllLabels() {
-      const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
+      // Usiamo Object.values().flat() così non devi mai più aggiornare questo array a mano
+      const all = [...Object.values(assetGroups).flat(), ...cryptos];
       all.forEach(id => {
         const label = document.getElementById(`label_${id}`);
         const prec  = prevCloses[id];
@@ -525,7 +530,6 @@
     //  WEBSOCKET STATUS HELPER
     // =====================================================
     function setWsStatus(feed, status) {
-      // status: 'connecting' | 'connected' | 'disconnected'
       const dot = document.getElementById(`dot-${feed}`);
       const lbl = document.getElementById(`label-${feed}`);
       if (!dot || !lbl) return;
@@ -536,8 +540,7 @@
     }
 
     // =====================================================
-    //  WEBSOCKET INIT — data logic UNCHANGED,
-    //  added: status indicators + auto-reconnect on close
+    //  WEBSOCKET INIT — EODHD OTTIMIZZATO
     // =====================================================
     function initBinanceWS() {
       setWsStatus('binance', 'connecting');
@@ -556,10 +559,13 @@
     function initEodhdWS() {
       setWsStatus('eodhd', 'connecting');
       const ws  = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
-      const all = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities];
+      
+      // Estrae automaticamente tutti i ticker stock/etf dall'oggetto
+      const allEodhd = Object.values(assetGroups).flat();
+      
       ws.onopen    = () => {
         setWsStatus('eodhd', 'connected');
-        all.forEach(s => ws.send(JSON.stringify({ "action": "subscribe", "symbols": s })));
+        allEodhd.forEach(s => ws.send(JSON.stringify({ "action": "subscribe", "symbols": s })));
       };
       ws.onmessage = (e) => {
         const res = JSON.parse(e.data);
@@ -570,7 +576,7 @@
     }
 
     // =====================================================
-    //  TRADINGVIEW LINK — click card → opens chart
+    //  TRADINGVIEW LINK
     // =====================================================
     function openTradingView(id) {
       const url = id.includes('usdt')
@@ -580,11 +586,7 @@
     }
 
     // =====================================================
-    //  UPDATE CARD — core logic UNCHANGED, added:
-    //    • lastTickTime tracking + stale removal
-    //    • sigma score storage
-    //    • alert border class management
-    //    • throttled top-movers refresh trigger
+    //  UPDATE CARD 
     // =====================================================
     function updateCard(id, price) {
       const pEl    = document.getElementById(`price_${id}`);
@@ -593,7 +595,6 @@
       const cardEl = document.getElementById(`card_${id}`);
       if (!pEl) return;
 
-      // Track tick time, remove stale styling
       lastTickTime[id] = Date.now();
       if (cardEl) cardEl.classList.remove('stale-data');
 
@@ -611,16 +612,13 @@
           const diff   = price - base;
           const moveSD = diff / sd;
 
-          // Gauge fill — UNCHANGED logic
           let fill = (Math.abs(moveSD) / GAUGE_MAX_SD) * 50;
           if (fill > 50) fill = 50;
           gEl.style.width = fill + '%';
           gEl.className   = `gauge-bar ${diff >= 0 ? 'positive' : 'negative'}`;
 
-          // Store sigma score for top-movers
           sigmaScores[id] = moveSD;
 
-          // Apply alert border based on σ level
           if (cardEl) {
             cardEl.classList.remove('alert-2sd', 'alert-3sd');
             const absSD = Math.abs(moveSD);
@@ -630,7 +628,6 @@
         }
       }
 
-      // Throttle top-movers panel refresh (max 1 update / 800ms)
       if (!topMoversTimer) {
         topMoversTimer = setTimeout(() => {
           updateTopMovers();
@@ -640,7 +637,7 @@
     }
 
     // =====================================================
-    //  TOP MOVERS PANEL — NEW
+    //  TOP MOVERS PANEL
     // =====================================================
     function updateTopMovers() {
       const panel = document.getElementById('top-movers-panel');
@@ -677,18 +674,16 @@
     }
 
     // =====================================================
-    //  STALE DATA CHECK — NEW
-    //  Runs every 60s. Marks cards with no tick for ≥5 min
-    //  with an amber dimmed border. Skips cards in σ alert.
+    //  STALE DATA CHECK — OTTIMIZZATA
     // =====================================================
     function checkStaleData() {
-      const STALE_MS = 5 * 60 * 1000; // 5 minutes
+      const STALE_MS = 5 * 60 * 1000; 
       const now      = Date.now();
-      const all      = [...assetGroups.indices, ...assetGroups.mag7, ...assetGroups.value, ...assetGroups.commodities, ...cryptos];
+      const all      = [...Object.values(assetGroups).flat(), ...cryptos];
 
       all.forEach(id => {
         const cardEl = document.getElementById(`card_${id}`);
-        if (!cardEl || !lastTickTime[id]) return; // skip if never received a tick
+        if (!cardEl || !lastTickTime[id]) return; 
 
         const isStale  = (now - lastTickTime[id]) > STALE_MS;
         const hasAlert = cardEl.classList.contains('alert-2sd') || cardEl.classList.contains('alert-3sd');
