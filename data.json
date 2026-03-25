@@ -5,7 +5,7 @@
     },
     "QQQ": {
         "prevClose": 587.82,
-        "stdDev": 9.962704431072607
+        "stdDev": 9.962596772281174
     },
     "DIA": {
         "prevClose": 464.14,
@@ -22,5 +22,97 @@
     "VT": {
         "prevClose": 139.17,
         "stdDev": 1.8097048186522287
+    },
+    "EEM": {
+        "prevClose": 57.42,
+        "stdDev": 0.9815516028742715
+    },
+    "AAPL": {
+        "prevClose": 252.62,
+        "stdDev": 7.07348256287755
+    },
+    "NVDA": {
+        "prevClose": 178.68,
+        "stdDev": 6.66457149755451
+    },
+    "PG": {
+        "prevClose": 143.92,
+        "stdDev": 1.9451202455466012
+    },
+    "WMT": {
+        "prevClose": 123.06,
+        "stdDev": 2.266129749325531
+    },
+    "AEM": {
+        "prevClose": 192.07,
+        "stdDev": 5.9003839056144605
+    },
+    "XLK": {
+        "prevClose": 136.76,
+        "stdDev": 2.2274622460650577
+    },
+    "XLV": {
+        "prevClose": 146.24,
+        "stdDev": 1.6452083989801811
+    },
+    "XLF": {
+        "prevClose": 49.34,
+        "stdDev": 0.8821556404604798
+    },
+    "XLY": {
+        "prevClose": 110.73,
+        "stdDev": 1.5847361947951806
+    },
+    "XLI": {
+        "prevClose": 165.1,
+        "stdDev": 2.1968320233347662
+    },
+    "XLP": {
+        "prevClose": 81.51,
+        "stdDev": 0.7818331977049869
+    },
+    "XLE": {
+        "prevClose": 60.57,
+        "stdDev": 1.0971166054653447
+    },
+    "XLU": {
+        "prevClose": 45.25,
+        "stdDev": 0.5492932496336832
+    },
+    "GLD": {
+        "prevClose": 416.29,
+        "stdDev": 4.744273243270133
+    },
+    "SLV": {
+        "prevClose": 65.21,
+        "stdDev": 1.3720371320434546
+    },
+    "USO": {
+        "prevClose": 113.39,
+        "stdDev": 2.643087209798671
+    },
+    "UNG": {
+        "prevClose": 11.86,
+        "stdDev": 0.3698738244439018
+    },
+    "CPER": {
+        "prevClose": 33.79,
+        "stdDev": 0.5304906784126528
+    },
+    "TLT": {
+        "prevClose": 86.84,
+        "stdDev": 0.7845652228101989
+    },
+    "HYG": {
+        "prevClose": 79.42,
+        "stdDev": 0.546965619223817
+    },
+    "FXE": {
+        "prevClose": 106.72,
+        "stdDev": 0.5994226910100355
+    },
+    "FXY": {
+        "prevClose": 57.61,
+        "stdDev": 0.36816904008687745
     }
 }
