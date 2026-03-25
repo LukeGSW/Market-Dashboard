@@ -18,28 +18,38 @@ def calc_std_dev(prices):
 
 def main():
     data_output = {}
-    if not API_TOKEN: return
+    if not API_TOKEN:
+        print("Errore: API_TOKEN mancante.")
+        return
 
-    # Batch Real-Time per le chiusure US
-    first_us = US_TICKERS[0]
-    rest_us = ",".join([f"{s}.US" for s in US_TICKERS[1:]])
-    rt_url = f"https://eodhd.com/api/real-time/{first_us}.US?api_token={API_TOKEN}&fmt=json&s={rest_us}"
-    
     try:
-        res = requests.get(rt_url).json()
-        items = res if isinstance(res, list) else [res]
-        for item in items:
-            ticker = item['code'].split('.')[0]
-            data_output[ticker] = {"prevClose": float(item['previousClose'])}
-            
-        # Storico per SD
+        # Iteriamo direttamente sui ticker per scaricare lo storico EOD.
+        # L'esecuzione alle 01:00 UTC garantisce che l'Official Closing Price 
+        # sia già stato consolidato e reso definitivo.
         for ticker in US_TICKERS:
             eod_url = f"https://eodhd.com/api/eod/{ticker}.US?api_token={API_TOKEN}&fmt=json&limit=21"
             eod_res = requests.get(eod_url).json()
-            closes = [float(d['adjusted_close']) for d in eod_res]
-            data_output[ticker]["stdDev"] = calc_std_dev(closes)
-    except: pass
+            
+            # Controllo per assicurarci che la risposta sia una lista valida
+            if isinstance(eod_res, list) and len(eod_res) > 0:
+                
+                # 1. Serie per i calcoli quantitativi (include rettifiche per dividendi/split)
+                closes_adj = [float(d['adjusted_close']) for d in eod_res]
+                
+                # 2. Serie per il prezzo ufficiale da visualizzare (puro)
+                closes_raw = [float(d['close']) for d in eod_res]
+                
+                data_output[ticker] = {
+                    "prevClose": closes_raw[-1],  # L'ultimo elemento è la chiusura ufficiale della giornata
+                    "stdDev": calc_std_dev(closes_adj)
+                }
+            else:
+                print(f"Attenzione: Dati non validi o vuoti per {ticker}")
+                
+    except Exception as e:
+        print(f"Errore critico durante l'esecuzione: {e}")
 
+    # Scrittura del JSON finale
     with open("data.json", "w") as f:
         json.dump(data_output, f, indent=4)
 
