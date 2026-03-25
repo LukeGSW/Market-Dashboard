@@ -4,8 +4,10 @@ import math
 import requests
 
 API_TOKEN = os.environ.get("EODHD_API_TOKEN")
+
+# Corretta la virgola mancante tra "EEM" e "AAPL"
 US_TICKERS = ["SPY", "QQQ", "DIA", "IWM", "DAX", "VT", "EEM", 
-              "NVDA", "PG", "WMT", "AEM",
+              "AAPL", "NVDA", "PG", "WMT", "AEM",
               "XLK", "XLV", "XLF", "XLY", "XLI", "XLP", "XLE", "XLU",
               "GLD", "SLV", "USO", "UNG", "CPER", 
               "TLT", "HYG", "FXE", "FXY"]
@@ -23,34 +25,37 @@ def main():
         print("Errore: API_TOKEN mancante.")
         return
 
-    try:
-        # Iteriamo direttamente sui ticker per scaricare lo storico EOD.
-        # L'esecuzione alle 01:00 UTC garantisce che l'Official Closing Price 
-        # sia già stato consolidato e reso definitivo.
-        for ticker in US_TICKERS:
+    # Spostiamo il try/except ALL'INTERNO del ciclo
+    for ticker in US_TICKERS:
+        try:
             eod_url = f"https://eodhd.com/api/eod/{ticker}.US?api_token={API_TOKEN}&fmt=json&limit=21"
-            eod_res = requests.get(eod_url).json()
+            response = requests.get(eod_url)
+            
+            # Controllo robusto: esegue il parsing JSON solo se la richiesta va a buon fine (200 OK)
+            if response.status_code != 200:
+                print(f"Errore API per {ticker}: HTTP {response.status_code}")
+                continue
+                
+            eod_res = response.json()
             
             # Controllo per assicurarci che la risposta sia una lista valida
             if isinstance(eod_res, list) and len(eod_res) > 0:
-                
-                # 1. Serie per i calcoli quantitativi (include rettifiche per dividendi/split)
                 closes_adj = [float(d['adjusted_close']) for d in eod_res]
-                
-                # 2. Serie per il prezzo ufficiale da visualizzare (puro)
                 closes_raw = [float(d['close']) for d in eod_res]
                 
                 data_output[ticker] = {
-                    "prevClose": closes_raw[-1],  # L'ultimo elemento è la chiusura ufficiale della giornata
+                    "prevClose": closes_raw[-1],
                     "stdDev": calc_std_dev(closes_adj)
                 }
             else:
                 print(f"Attenzione: Dati non validi o vuoti per {ticker}")
                 
-    except Exception as e:
-        print(f"Errore critico durante l'esecuzione: {e}")
+        except Exception as e:
+            # Se un ticker fallisce (es. errore di rete temporaneo), viene stampato a log 
+            # ma il ciclo prosegue in modo indolore col prossimo ticker
+            print(f"Errore critico elaborando {ticker}: {e}")
 
-    # Scrittura del JSON finale
+    # Scrittura del JSON finale (salva tutto ciò che è riuscito a scaricare)
     with open("data.json", "w") as f:
         json.dump(data_output, f, indent=4)
 
