@@ -211,6 +211,14 @@
       letter-spacing: 1.5px;
       margin-bottom: 2px;
     }
+    .ticker-sub {
+      font-size: 0.65rem;
+      color: #888;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-family: sans-serif;
+    }
     .price { font-size: 1.95rem; margin: 8px 0 4px 0; font-weight: bold; }
     .pct { font-size: 1.1rem; font-weight: bold; margin-bottom: 14px; }
     .positive-text { color: #00ff66; }
@@ -378,15 +386,27 @@
 
   <script>
     // =====================================================
-    //  DATA CONFIGURATION — AGGIORNATA
+    //  DATA CONFIGURATION
     // =====================================================
     const assetGroups = {
       "indices":     ["SPY", "QQQ", "DIA", "IWM", "DAX", "VT", "EEM"],
       "stocks":      ["NVDA", "PG", "WMT", "AEM"],
       "sectors":     ["XLK", "XLV", "XLF", "XLY", "XLI", "XLP", "XLE", "XLU"],
       "commodities": ["GLD", "SLV", "USO", "UNG", "CPER"],
-      "bonds_forex": ["TLT", "HYG", "FXE", "FXY"] // Corretta sintassi e chiave
+      "bonds_forex": ["TLT", "HYG", "FXE", "FXY"]
     };
+
+    const sectorNames = {
+      "XLK": "Technology",
+      "XLV": "Healthcare",
+      "XLF": "Financials",
+      "XLY": "Cons Discret",
+      "XLI": "Industrials",
+      "XLP": "Cons Staples",
+      "XLE": "Energy",
+      "XLU": "Utilities"
+    };
+
     const cryptos = ["btcusdt", "ethusdt", "solusdt"];
     let eodToken = "";
     let prevCloses    = {};
@@ -394,7 +414,7 @@
     const GAUGE_MAX_SD = 3.0;
 
     // =====================================================
-    //  NEW: UI STATE TRACKERS
+    //  UI STATE TRACKERS
     // =====================================================
     let sigmaScores    = {};   // id → current σ score
     let lastTickTime   = {};   // id → timestamp of last received tick
@@ -469,7 +489,7 @@
     }
 
     // =====================================================
-    //  BUILD UI — AGGIORNATA CON I NUOVI CONTENITORI
+    //  BUILD UI — OTTIMIZZATA CON SOTTOTITOLI SETTORIALI
     // =====================================================
     function buildUI() {
       const containers = {
@@ -482,7 +502,11 @@
       };
       
       for (const [group, tickers] of Object.entries(assetGroups)) {
-        tickers.forEach(t => { containers[group].innerHTML += createCardHTML(t); });
+        tickers.forEach(t => { 
+          // Seleziona il nome del settore solo se presente, altrimenti stringa vuota
+          const subtitle = (group === "sectors" && sectorNames[t]) ? sectorNames[t] : "";
+          containers[group].innerHTML += createCardHTML(t, t, subtitle); 
+        });
       }
       
       cryptos.forEach(c => {
@@ -491,9 +515,12 @@
       });
     }
 
-    function createCardHTML(display, id = display) {
+    function createCardHTML(display, id = display, subtitle = "") {
+      const subHtml = subtitle ? `<div class="ticker-sub">${subtitle}</div>` : '';
+      
       return `<div class="card" id="card_${id}" onclick="openTradingView('${id}')">
-        <div class="ticker-name">${display}</div>
+        <div class="ticker-name" style="${subtitle ? 'margin-bottom: 1px;' : ''}">${display}</div>
+        ${subHtml}
         <div class="price neutral-text" id="price_${id}">--.---</div>
         <div class="pct neutral-text" id="pct_${id}">0.00%</div>
         <div class="gauge-container">
@@ -510,10 +537,9 @@
     }
 
     // =====================================================
-    //  UPDATE ALL LABELS — OTTIMIZZATA DINAMICAMENTE
+    //  UPDATE ALL LABELS
     // =====================================================
     function updateAllLabels() {
-      // Usiamo Object.values().flat() così non devi mai più aggiornare questo array a mano
       const all = [...Object.values(assetGroups).flat(), ...cryptos];
       all.forEach(id => {
         const label = document.getElementById(`label_${id}`);
@@ -540,7 +566,7 @@
     }
 
     // =====================================================
-    //  WEBSOCKET INIT — EODHD OTTIMIZZATO
+    //  WEBSOCKET INIT
     // =====================================================
     function initBinanceWS() {
       setWsStatus('binance', 'connecting');
@@ -560,7 +586,6 @@
       setWsStatus('eodhd', 'connecting');
       const ws  = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
       
-      // Estrae automaticamente tutti i ticker stock/etf dall'oggetto
       const allEodhd = Object.values(assetGroups).flat();
       
       ws.onopen    = () => {
@@ -674,7 +699,7 @@
     }
 
     // =====================================================
-    //  STALE DATA CHECK — OTTIMIZZATA
+    //  STALE DATA CHECK
     // =====================================================
     function checkStaleData() {
       const STALE_MS = 5 * 60 * 1000; 
