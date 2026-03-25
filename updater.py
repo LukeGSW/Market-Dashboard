@@ -5,7 +5,7 @@ import requests
 
 API_TOKEN = os.environ.get("EODHD_API_TOKEN")
 US_TICKERS = ["SPY", "QQQ", "DIA", "IWM", "DAX", "VT", "EEM", 
-              "AAPL", "NVDA", "PG", "WMT", "AEM",
+              "NVDA", "PG", "WMT", "AEM",
               "XLK", "XLV", "XLF", "XLY", "XLI", "XLP", "XLE", "XLU",
               "GLD", "SLV", "USO", "UNG", "CPER", 
               "TLT", "HYG", "FXE", "FXY"]
