@@ -1,4 +1,8 @@
 {
+    "VIXY": {
+        "prevClose": 35.49,
+        "stdDev": 1.5255177641565778
+    },
     "SPY": {
         "prevClose": 645.09,
         "stdDev": 7.561941045798398
@@ -43,13 +47,13 @@
         "prevClose": 122.18,
         "stdDev": 2.2498565791714578
     },
-    "AMAT": {
-        "prevClose": 338.55,
-        "stdDev": 10.26325621573885
-    },
     "AEM": {
         "prevClose": 187.56,
         "stdDev": 5.761753984705663
+    },
+    "AMAT": {
+        "prevClose": 338.55,
+        "stdDev": 10.26325621573885
     },
     "XLK": {
         "prevClose": 132.5,
