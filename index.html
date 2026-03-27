@@ -365,6 +365,9 @@
       </span>
     </div>
 
+    <h2>Volatilità</h2>
+    <div id="grid-volatility" class="grid-container"></div>
+
     <h2>Indici</h2>
     <div id="grid-indices" class="grid-container"></div>
 
@@ -389,6 +392,7 @@
     //  DATA CONFIGURATION
     // =====================================================
     const assetGroups = {
+      "volatility":  ["VIX"],
       "indices":     ["SPY", "QQQ", "DIA", "IWM", "DAX", "VT", "EEM"],
       "stocks":      ["NVDA", "PG", "WMT", "AMAT", "AEM"],
       "sectors":     ["XLK", "XLV", "XLF", "XLY", "XLI", "XLP", "XLE", "XLU"],
@@ -398,6 +402,9 @@
 
     // NUOVO: Dizionario globale per TUTTI i sottotitoli
     const tickerSubtitles = {
+      // Volatilità
+      "VIX": "CBOE Volatility",
+
       // Indici
       "SPY": "S&P 500",
       "QQQ": "Nasdaq 100",
@@ -515,6 +522,7 @@
         updateAllLabels();
         initBinanceWS();
         initEodhdWS();
+        initIndexWS(); // Aggiunto WebSocket per Indici (VIX)
 
         setInterval(checkStaleData, 60000);
 
@@ -522,10 +530,11 @@
     }
 
     // =====================================================
-    //  BUILD UI — AGGIORNATA PER TUTTI I SOTTOTITOLI
+    //  BUILD UI — AGGIORNATA PER TUTTI I SOTTOTITOLI E VIX
     // =====================================================
     function buildUI() {
       const containers = {
+        "volatility":  document.getElementById('grid-volatility'),
         "indices":     document.getElementById('grid-indices'),
         "stocks":      document.getElementById('grid-stocks'),
         "sectors":     document.getElementById('grid-sectors'),
@@ -578,7 +587,7 @@
         const label = document.getElementById(`label_${id}`);
         const prec  = prevCloses[id];
         const sd    = stdDeviations[id];
-        const dec   = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+        const dec   = (id.includes('usdt') || assetGroups.indices.includes(id) || id === "VIX") ? 2 : 3;
         if (label && prec) {
           label.innerText = `Prev: ${prec.toFixed(dec)} | 1σ: ${sd ? sd.toFixed(dec) : '--'}`;
         }
@@ -619,7 +628,8 @@
       setWsStatus('eodhd', 'connecting');
       const ws  = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/us?api_token=${eodToken}`);
       
-      const allEodhd = Object.values(assetGroups).flat();
+      // Escludiamo il VIX dal WS azionario americano
+      const allEodhd = Object.values(assetGroups).flat().filter(s => s !== "VIX");
       
       ws.onopen    = () => {
         setWsStatus('eodhd', 'connected');
@@ -631,6 +641,28 @@
       };
       ws.onclose   = () => { setWsStatus('eodhd', 'disconnected'); setTimeout(initEodhdWS, 4000); };
       ws.onerror   = () => { setWsStatus('eodhd', 'disconnected'); };
+    }
+
+    function initIndexWS() {
+      const ws = new WebSocket(`wss://ws.eodhistoricaldata.com/ws/index?api_token=${eodToken}`);
+      
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ "action": "subscribe", "symbols": "VIX.INDX" }));
+      };
+      
+      ws.onmessage = (e) => {
+        try {
+          const res = JSON.parse(e.data);
+          if (res.s && res.p) {
+            const symbol = res.s === "VIX.INDX" ? "VIX" : res.s;
+            updateCard(symbol, parseFloat(res.p));
+          }
+        } catch (err) {
+          console.error("Errore parsing WS Index", err);
+        }
+      };
+      
+      ws.onclose = () => { setTimeout(initIndexWS, 4000); };
     }
 
     // =====================================================
@@ -656,7 +688,7 @@
       lastTickTime[id] = Date.now();
       if (cardEl) cardEl.classList.remove('stale-data');
 
-      const dec = (id.includes('usdt') || assetGroups.indices.includes(id)) ? 2 : 3;
+      const dec = (id.includes('usdt') || assetGroups.indices.includes(id) || id === "VIX") ? 2 : 3;
       pEl.innerText = price.toFixed(dec);
 
       const base = prevCloses[id];
