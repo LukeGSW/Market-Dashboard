@@ -1,126 +1,126 @@
 {
     "VIXY": {
-        "prevClose": 23.46,
-        "stdDev": 1.0053273722375766
+        "prevClose": 23.52,
+        "stdDev": 1.0077703552184263
     },
     "SPY": {
-        "prevClose": 759.57,
-        "stdDev": 8.892657348604729
+        "prevClose": 754.24,
+        "stdDev": 8.829943447857922
     },
     "QQQ": {
-        "prevClose": 746.16,
-        "stdDev": 12.626182461494356
+        "prevClose": 744.21,
+        "stdDev": 12.592295597589914
     },
     "DIA": {
-        "prevClose": 514.05,
-        "stdDev": 6.0027068872752345
+        "prevClose": 508.26,
+        "stdDev": 5.935095100433347
     },
     "IWM": {
-        "prevClose": 291.66,
-        "stdDev": 4.4018464065180325
+        "prevClose": 287.67,
+        "stdDev": 4.341585904348461
     },
     "DAX": {
-        "prevClose": 46.025,
-        "stdDev": 0.6227253275285993
+        "prevClose": 45.32,
+        "stdDev": 0.6132239427952221
     },
     "VT": {
-        "prevClose": 159.35,
-        "stdDev": 2.068132077706816
+        "prevClose": 157.95,
+        "stdDev": 2.049848192550428
     },
     "EEM": {
-        "prevClose": 70.8,
-        "stdDev": 1.2108798107370629
+        "prevClose": 69.92,
+        "stdDev": 1.1957850479804453
     },
     "AAPL": {
-        "prevClose": 315.2,
-        "stdDev": 8.813619137967759
+        "prevClose": 310.26,
+        "stdDev": 8.67524015974397
     },
     "NVDA": {
-        "prevClose": 222.82,
-        "stdDev": 8.295036219378689
+        "prevClose": 214.75,
+        "stdDev": 7.986479733213606
     },
     "PG": {
-        "prevClose": 140.82,
-        "stdDev": 1.903170195704045
+        "prevClose": 140.19,
+        "stdDev": 1.8946049297949341
     },
     "WMT": {
-        "prevClose": 113.06,
-        "stdDev": 2.080596912262518
+        "prevClose": 116.89,
+        "stdDev": 2.1512490683668664
     },
     "AEM": {
-        "prevClose": 178.94,
-        "stdDev": 5.494889023447442
+        "prevClose": 171.65,
+        "stdDev": 5.271197058258846
     },
     "AMAT": {
-        "prevClose": 490.05,
-        "stdDev": 14.776741817186943
+        "prevClose": 500.77,
+        "stdDev": 15.099650227900892
     },
     "XLK": {
-        "prevClose": 198.21,
-        "stdDev": 3.2297053293687275
+        "prevClose": 196.23,
+        "stdDev": 3.197306040202965
     },
     "XLV": {
-        "prevClose": 146.4,
-        "stdDev": 1.6455269700296844
+        "prevClose": 147.55,
+        "stdDev": 1.658386378838034
     },
     "XLF": {
-        "prevClose": 51.46,
-        "stdDev": 0.917698155359143
+        "prevClose": 50.87,
+        "stdDev": 0.9071393634481967
     },
     "XLY": {
-        "prevClose": 117.59,
-        "stdDev": 1.681977132393239
+        "prevClose": 116.73,
+        "stdDev": 1.6695900517510942
     },
     "XLI": {
-        "prevClose": 174.19,
-        "stdDev": 2.317804939343225
+        "prevClose": 174.05,
+        "stdDev": 2.315775533570045
     },
     "XLP": {
-        "prevClose": 81.83,
-        "stdDev": 0.7846196889477404
+        "prevClose": 82.16,
+        "stdDev": 0.7877356018610484
     },
     "XLE": {
-        "prevClose": 57.96,
-        "stdDev": 1.0493219489038268
+        "prevClose": 58.71,
+        "stdDev": 1.0628599633759193
     },
     "XLU": {
-        "prevClose": 43.9,
-        "stdDev": 0.5325609553578885
+        "prevClose": 43.71,
+        "stdDev": 0.5302232016856644
     },
     "GLD": {
-        "prevClose": 411.95,
-        "stdDev": 4.710772268116814
+        "prevClose": 407.87,
+        "stdDev": 4.664039335226434
     },
     "SLV": {
-        "prevClose": 67.99,
-        "stdDev": 1.4402643794499694
+        "prevClose": 66.21,
+        "stdDev": 1.402641821205549
     },
     "USO": {
-        "prevClose": 137.27,
-        "stdDev": 3.2295135051928163
+        "prevClose": 140.86,
+        "stdDev": 3.31404946064681
     },
     "UNG": {
-        "prevClose": 11.47,
-        "stdDev": 0.35707608992569917
+        "prevClose": 11.71,
+        "stdDev": 0.36452867777093895
     },
     "CPER": {
-        "prevClose": 40.6,
-        "stdDev": 0.795294384821934
+        "prevClose": 39.42,
+        "stdDev": 0.7723158232298551
     },
     "TLT": {
-        "prevClose": 85.65,
-        "stdDev": 0.7719134278896134
+        "prevClose": 85.31,
+        "stdDev": 0.7687985250635017
     },
     "HYG": {
-        "prevClose": 79.9,
-        "stdDev": 0.5480833743477077
+        "prevClose": 79.68,
+        "stdDev": 0.5465280071123856
     },
     "FXE": {
-        "prevClose": 107.26,
-        "stdDev": 0.6005796489890507
+        "prevClose": 106.95,
+        "stdDev": 0.5987463691071262
     },
     "FXY": {
-        "prevClose": 57.43,
-        "stdDev": 0.3661014921135885
+        "prevClose": 57.335,
+        "stdDev": 0.3654605618868923
     }
 }
